@@ -15,7 +15,15 @@ from detect_peaks import detect_peaks
 
 
 def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
+    """This code is adapted from the paper
 
+       "Quasi-periodic patterns(QP):Large-scale dynamics in resting state fMRI that correlate"\
+
+       with local infraslow electrical activity" Shella Keilholz,D et al.NeuroImage,Volume 84, 1 January 2014."\
+
+       The paper implemnts the algorithms for finding QPP in resting state fMRI using matlab"\
+
+       This project is an attempt to adopt the algorithm in python, and to integrate into C-PAC."""
     #get parameters of the image shape to decide the
     #shape of the cells,arrays,etc
     nT = B.shape[1] #smaller value
@@ -64,12 +72,12 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     i2x = ndarray.flatten(i2x)
     itp = np.delete(itp,i2x-1,0)
     #permute the numbers within ITP
-    itp = np.random.permutation(itp)
+
+    #itp = np.random.RandomState(seed=42).permutation(itp)
     itp = itp[0:nrp]
     #Initialize the time course that will later on be saved
     time_course=np.zeros((nrp,nT))
-    ftp = np.zeros((nrp,1))
-    iter= np.zeros((nrp,1))
+
     for irp in range(nrp):
         #initialize a matrix c which will hold the templates
         c=np.zeros(nT)
@@ -100,6 +108,8 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
         c_00 = c
         c_000 = c
         itr = 1
+        peaks_size = peaks.size
+
         while itr<=mx_itr:
             c = gaussian_filter(c,0.5)
 
@@ -124,7 +134,7 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
             for i in range(nd):
                 for ich in range(nch):
                     c[i*nt+ich]=np.dot(template,bchfn[(i)*nt+ich])
-            peaks=detect_peaks(x=c,mph=cth[0],mpd=wl)
+            peaks=detect_peaks(c,mph=cth[1],mpd=wl)
             for i in range(nd):
                 if i * nt in peaks:
                     peaks = np.delete(peaks, np.where(peaks == (i) * nt))
@@ -135,26 +145,29 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
             if (np.corrcoef(c_0,c)[0,1]>0.9999) or (np.corrcoef(c_00,c)[0,1]>0.9999) or (np.corrcoef(c_000,c)[0,1]>0.9999):
                 break
 
-        c_000=c_00
-        c_00=c_0
-        c_0=c
-        itr=itr+1
-    if n_tpsgth>1:
-        time_course[irp,:]=c
-        FTP[[irp]]=tpsgth
-        ITER[iRp]=itr
-    else:
-        pass
+            c_000=c_00
+            c_00=c_0
+            c_0=c
+            itr=itr+1
+        ftp = np.zeros((nrp, peaks.shape[0]))
+        iter = np.zeros(nrp)
+        if peaks_size>1:
+            time_course[irp,:]=c
+
+            ftp[irp]=peaks
+            iter[irp]=itr
     #save everything!!
+    np.savetxt("C_python.txt",time_course)
     mdict = {}
     mdict["C"] = timecourse
-    mdict["FTP"] = FTP
-    mdict["ITER"] = ITER
-    mdict["ITP"] = ITP
-    for keys in mdict:
-        with open('QPP_results.csv','w') as f:
-        data =csv.writer(f)
-        mdict = dict(reader)
+    mdict["FTP"] = ftp
+    mdict["ITER"] = iter
+    mdict["ITP"] = itp
+    print(mdict)
+    with open(os.path.join(pf2s,'QPP_results.csv'),'w') as data:
+        for key in mdict.keys():
+             f.write("%s,%s\n"%((key,mdict[key])))
+
 
 
 def z(x,y):
