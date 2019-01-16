@@ -14,7 +14,7 @@ from detect_peaks import detect_peaks
 
 
 
-def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
+def qppv(img_affine,B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     """This code is adapted from the paper
 
        "Quasi-periodic patterns(QP):Large-scale dynamics in resting state fMRI that correlate"\
@@ -30,6 +30,7 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     nX = B.shape[0] #larger value
     #print(nT,nX)
     nt = int(nT/nd) #to prevent floating point errors during initializations
+
     nch = nt-wl+1
     nTf = (nX*wl)
     #make it a boolean mask - all valies with entries greater than zeros will become 1 the rest will be zero
@@ -72,16 +73,17 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     i2x = ndarray.flatten(i2x)
     itp = np.delete(itp,i2x-1,0)
     #permute the numbers within ITP
+    itp = np.random.permutation(itp)
 
     #itp = np.random.RandomState(seed=42).permutation(itp)
     itp = itp[0:nrp]
+
     #Initialize the time course that will later on be saved
     time_course=np.zeros((nrp,nT))
 
     for irp in range(nrp):
         #initialize a matrix c which will hold the templates
         c=np.zeros(nT)
-        #print(c.shape)
         for i in range(nd):
             for ich in range(nch):
                 #bchfn_transpose = np.transpose(bchfn[itp[irp]])
@@ -149,25 +151,41 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
             c_00=c_0
             c_0=c
             itr=itr+1
+
         ftp = np.zeros((nrp, peaks.shape[0]))
         iter = np.zeros(nrp)
         if peaks_size>1:
             time_course[irp,:]=c
-
             ftp[irp]=peaks
             iter[irp]=itr
     #save everything!!
-    np.savetxt("C_python.txt",time_course)
+
+
+
     mdict = {}
-    mdict["C"] = timecourse
+    mdict["C"] = time_course
     mdict["FTP"] = ftp
     mdict["ITER"] = iter
     mdict["ITP"] = itp
-    print(mdict)
-    with open(os.path.join(pf2s,'QPP_results.csv'),'w') as data:
+    time_course_reshaped= np.reshape(time_course,((4,4,73,61)))
+    np.savez('out_array_reshape', time_course_reshaped)
+    nifti_c = nib.Nifti1Image(time_course_reshaped,np.eye(4))
+    nib.save(nifti_c, 'nifti_c.nii')
+    #print(time_course_reshaped[20:30])
+    with open(os.path.join(pfs,'QPP_C.csv'),'w') as data:
         for key in mdict.keys():
-             f.write("%s,%s\n"%((key,mdict[key])))
+            time_course.tofile(data,sep="",format="%2.2f")
+    with open(os.path.join(pfs,'QPP_FTP.csv'),'w') as data:
+        for key in mdict.keys():
+            ftp.tofile(data,sep="",format="%2.2f")
+    with open(os.path.join(pfs,'QPP_ITER.csv'),'w') as data:
+        for key in mdict.keys():
+            iter.tofile(data,sep="",format="%2.2f")
+    with open(os.path.join(pfs,'QPP_ITP.csv'),'w') as data:
+        for key in mdict.keys():
+            itp.tofile(data,sep="",format="%2.2f")
 
+    return time_course,ftp,itp,iter
 
 
 def z(x,y):
@@ -180,23 +198,45 @@ def z(x,y):
         z = (x_trans*y)/norm(x)/norm(y)
     return z
 
-def BSTT(file_name=None):
+def BSTT(time_course,ftp):
     #load the important files into this
-    scipy.loadmat(pf2s,'C','FTP')
-    nRp = C.shape[0]
+
+    nRp = time_course.shape[0]
     scmx = np.zeros((nRp,1))
     for i in range(nRp):
-        if FTP[i] == 0:
-            scmx[i] =np.sum(C[i,FTP[i]])
+        if ftp[i] == 0:
+            scmx[i] =np.sum(time_course[i,ftp[i]])
     isscmx = np.sort(scmx)[::-1]
-    iT1 = isscmx[0]
-    C_1 = C[iT1,:]
-    FTP1 = FTP[iT1]
+    T1 = isscmx[0]
+    C_1 = time_course[T1,:]
+    FTP1 = ftp[T1]
     Met1 = []
     Met1 = np.array(Met1)
-    Met1[0] = np.median(C1[:,FTP1])
+    Met1[0] = np.median(C_1[:,FTP1])
     Met1[1] = np.median(no.diff(FTP1))
     Met1[2] = len(FTP1)
+    return C_1,FTP1,Met1
+
+def TBLD2WL(B,wl,FTP1):
+    nT = B.shape[1]  # smaller value
+    nX = B.shape[0]
+    nFTP = len(FTP1)
+    WLhs0=round(wl/2)
+    WLhe0= WLhs0-int(wl/2)
+    T = np.zeros((nX,2*wl))
+    for i in range(nFTP):
+        ts=FTP1[i]-WLhs0
+        fe=FTP1[i]+wl-1+WLhe0
+        if ts <= 0:
+            zs=np.zeros((nX,abs(ts)+1))
+            ts=1
+        if te>nT:
+            ze = np.zeros((nX,te-nT))
+            te=nT
+        conct_arrays = np.concatenate(zs,B[:,ts:te],ze)
+        T = T+conct_arrays
+    T=T/nFTP
+    return T
 
 def regressqpp(B,nd,T1,C1):
     wl = T1.shape[1]/2
@@ -235,7 +275,7 @@ def regressqpp(B,nd,T1,C1):
         T=T-np.sum(T)/nTf
         bch = T/np.sqrt(np.dot(T,T))
         C1r[:,ts+ich]=T1n*bch
-
+    return Br,C1r
 
 if __name__ == '__main__':
 
