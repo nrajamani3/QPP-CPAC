@@ -19,8 +19,7 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
        "Quasi-periodic patterns(QP):Large-scale dynamics in resting state fMRI that correlate"\
        with local infraslow electrical activity" Shella Keilholz,D et al.NeuroImage,Volume 84, 1 January 2014."\
        The paper implemnts the algorithms for finding QPP in resting state fMRI using matlab"\
-       This project is an attempt to adopt the algorithm in python, and to integrate into C-PAC."""
-     """  
+       This project is an attempt to adopt the algorithm in python, and to integrate into C-PAC.
        Input:
        ------
        B: 2D nifti image 
@@ -55,7 +54,7 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
        'path/to/mask/file/' 
        30 6 0.2 0.3 1 15 
        'path/to/save/results/' 6 1
-     """
+    """
     #get parameters of the image shape to decide the
     #shape of the cells,arrays,etc
     nT = B.shape[1] #smaller value
@@ -286,9 +285,7 @@ def TBLD2WL(B,wl,FTP1):
         #    T=T+concat_arrays2
         #else:
         if ze.size == 0:
-            print(zs.shape)
-            print(B[:,ts:te_int[0]+1].shape)
-            conct_arrays = zs.append(B[:,ts:te_int[0]+1])
+            conct_arrays = np.concatenate(zs,B[:,ts:te_int[0]+1],axis=1)
             print(conct_arrays.shape)
             T = T + conct_arrays2
 
