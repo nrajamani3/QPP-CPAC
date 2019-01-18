@@ -14,16 +14,48 @@ from detect_peaks import detect_peaks
 
 
 
-def qppv(img_affine,B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
+def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     """This code is adapted from the paper
-
        "Quasi-periodic patterns(QP):Large-scale dynamics in resting state fMRI that correlate"\
-
        with local infraslow electrical activity" Shella Keilholz,D et al.NeuroImage,Volume 84, 1 January 2014."\
-
        The paper implemnts the algorithms for finding QPP in resting state fMRI using matlab"\
-
        This project is an attempt to adopt the algorithm in python, and to integrate into C-PAC."""
+     """  
+       Input:
+       ------
+       B: 2D nifti image 
+       msk: mask of the 2D nifti image
+       nd: number of subjects*number of runs per subject
+       wl: window length
+       nrp: number of repetitions 
+       cth: threshold
+       n_itr_th: number of iterations
+       mx_itr: maximum number of repetitions 
+       pfs: path to save the template, FTP, ITP and iter files
+       
+       
+       Returns:
+       -------
+       time_course_file: 2D array of time points where QPP is detected in .npy format
+       ftp_file: 1D array of Final Time Points in .npy format
+       itp_file: 1D array of Final Time points in .npy format
+       iter_file: 1D array of iterations in .npy format 
+       
+       Notes:
+       -----
+       i) If using a .mat file as an input, save only the image with 'v7.0' to make it scipy.io loadmat compatible
+       (This functionality will soon be replaced by importing with NifTi format only)
+       
+       ii) To show the peaks found in the signal, add a show=True boolean values in the "find peaks" command.
+       A "True" plots the peaks that are found in the signal. 
+       
+       Examples:
+       --------
+       >> python detectqpp.py  python detectqppv.py '/path/to/Data/file.mat' 
+       'path/to/mask/file/' 
+       30 6 0.2 0.3 1 15 
+       'path/to/save/results/' 6 1
+     """
     #get parameters of the image shape to decide the
     #shape of the cells,arrays,etc
     nT = B.shape[1] #smaller value
@@ -161,29 +193,21 @@ def qppv(img_affine,B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     #save everything!!
 
 
-
     mdict = {}
     mdict["C"] = time_course
     mdict["FTP"] = ftp
     mdict["ITER"] = iter
     mdict["ITP"] = itp
-    time_course_reshaped= np.reshape(time_course,((4,4,73,61)))
-    np.savez('out_array_reshape', time_course_reshaped)
-    nifti_c = nib.Nifti1Image(time_course_reshaped,np.eye(4))
+    #time_course_reshaped= np.reshape(time_course,((4,4,73,61)))
+    np.savez('out_array_reshape', time_course)
+    nifti_c = nib.Nifti1Image(time_course,np.eye(4))
     nib.save(nifti_c, 'nifti_c.nii')
     #print(time_course_reshaped[20:30])
-    with open(os.path.join(pfs,'QPP_C.csv'),'w') as data:
-        for key in mdict.keys():
-            time_course.tofile(data,sep="",format="%2.2f")
-    with open(os.path.join(pfs,'QPP_FTP.csv'),'w') as data:
-        for key in mdict.keys():
-            ftp.tofile(data,sep="",format="%2.2f")
-    with open(os.path.join(pfs,'QPP_ITER.csv'),'w') as data:
-        for key in mdict.keys():
-            iter.tofile(data,sep="",format="%2.2f")
-    with open(os.path.join(pfs,'QPP_ITP.csv'),'w') as data:
-        for key in mdict.keys():
-            itp.tofile(data,sep="",format="%2.2f")
+
+    np.save('time_course_file',time_course)
+    np.save('ftp_file',ftp)
+    np.save('iter_file',iter)
+    np.save('itp_file',itp)
 
     return time_course,ftp,itp,iter
 
@@ -202,18 +226,26 @@ def BSTT(time_course,ftp):
     #load the important files into this
 
     nRp = time_course.shape[0]
+
     scmx = np.zeros((nRp,1))
     for i in range(nRp):
-        if ftp[i] == 0:
-            scmx[i] =np.sum(time_course[i,ftp[i]])
-    isscmx = np.sort(scmx)[::-1]
+        if np.any(ftp[i] != 0):
+            c = ftp[i,:]
+            d = c.tolist()
+            scmx[i] =np.sum(time_course[i,int(d[i])])
+    isscmx = np.argsort(scmx)[::-1]
     T1 = isscmx[0]
     C_1 = time_course[T1,:]
-    FTP1 = ftp[T1]
-    Met1 = []
-    Met1 = np.array(Met1)
-    Met1[0] = np.median(C_1[:,FTP1])
-    Met1[1] = np.median(no.diff(FTP1))
+
+    FTP1 = ftp[T1] #this is a 2D array
+
+    FTP1_flat = FTP1.flatten()
+    ftp_list = FTP1_flat.tolist()
+
+    Met1 = np.empty(3)
+    for y in range(len(ftp_list)):
+        Met1[0] = np.median(C_1[:,int(ftp_list[y])]) #trying to do C_1[:,2d array]
+    Met1[1] = np.median(np.diff(FTP1))
     Met1[2] = len(FTP1)
     return C_1,FTP1,Met1
 
@@ -222,19 +254,48 @@ def TBLD2WL(B,wl,FTP1):
     nX = B.shape[0]
     nFTP = len(FTP1)
     WLhs0=round(wl/2)
-    WLhe0= WLhs0-int(wl/2)
-    T = np.zeros((nX,2*wl))
+
+    WLhe0= WLhs0-np.remainder(wl,2)
+
+    T = np.zeros((nX,2*wl)) #shape is 61,60
+
     for i in range(nFTP):
-        ts=FTP1[i]-WLhs0
-        fe=FTP1[i]+wl-1+WLhe0
-        if ts <= 0:
-            zs=np.zeros((nX,abs(ts)+1))
+        ts=FTP1[:,i]-WLhs0
+        te=FTP1[:,i]+wl-1+WLhe0
+        te_int = te.astype(int)
+        zs = []
+        ze = []
+        zs = np.array(zs)
+        ze = np.array(ze)
+        print(ts)
+        print(te)
+        if np.any(ts <= 0):
+            ts_int = ts.astype(int)
+            zs=np.zeros((nX,abs(ts_int[0])+1))
             ts=1
-        if te>nT:
-            ze = np.zeros((nX,te-nT))
+        if np.any(te>nT):
+            ze = np.zeros((nX,abs(te_int[0])-nT))
             te=nT
-        conct_arrays = np.concatenate(zs,B[:,ts:te],ze)
-        T = T+conct_arrays
+
+
+        #    if ts == 1 or te > ts:
+        #        temp = np.zeros((nX,te_int[0]-ts))
+        #    else:
+        #        temp = np.zeros((nX,ts-te_int[0]))
+        #    concat_arrays2 = np.concatenate([temp,B[:,ts:te_int[0]]])
+        #    T=T+concat_arrays2
+        #else:
+        if ze.size == 0:
+            print(zs.shape)
+            print(B[:,ts:te_int[0]+1].shape)
+            conct_arrays = zs.append(B[:,ts:te_int[0]+1])
+            print(conct_arrays.shape)
+            T = T + conct_arrays2
+
+        else:
+            conct_arrays = np.concatenate([zs,ze])
+            conct_arrays2 = np.concatenate([conct_arrays2,B[:,ts:te_int[0]+1]])
+            T = T+conct_arrays2
     T=T/nFTP
     return T
 
