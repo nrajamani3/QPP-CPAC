@@ -4,13 +4,13 @@ import numpy as np
 import os
 import nibabel as nib
 from scipy import stats
-from scipy import io
-from QPPv0418 import qppv
+import scipy.io
+from QPPv0418 import qppv,BSTT,TBLD2WL,regressqpp
 import time
 
 
 def merger(d2,d3,d4,d5,nsubj,nrn):
-
+    #if you're giving the images in .nii format, and individual ones
     d2_file = h5py.File(d2)
     d2 = d2_file['B_2']
     d2 = np.array(d2)
@@ -41,32 +41,33 @@ def merger(d2,d3,d4,d5,nsubj,nrn):
     return D,D_list
 
 
-def detect(img_affine,D,D_list,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn):
+def detect(img,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn):
 
 
-    #if  msk.endswith('.nii'):
-        #data1 = nib.load(args.d)
-        #data1 = np.array(data1.dataobj) #(61,73,61,8)
+    if  msk.endswith('.nii'):
+        data1 = nib.load(msk)
+        msk_img = np.array(data1.dataobj)
         #import msk
-    #    msk_file =nib.load(args.msk)
-    #    msk_img = np.array(msk_file.dataobj)
 
         #same for masks
-    #    msk_shape = msk_img.shape[:-1]
-    #    m_voxels = np.prod(msk_img.shape[:-1])
-    #    msk = msk_img.reshape(m_voxels,msk_img.shape[-1])
+        msk_shape = msk_img.shape[:-1]
+        m_voxels = np.prod(msk_img.shape[:-1])
+        msk = msk_img.reshape(m_voxels,msk_img.shape[-1])
 
-    #if  msk.endswith('.mat'):  #we have to remove this, only keeping this for testing
-    #    msk_file = h5py.File(msk)
-    #    msk_img = msk_file['M']
-    #    msk_img = np.array(msk_img)
-    #    msk_shape = msk_img.shape[:-1]
-    #    m_voxels = np.prod(msk_img.shape[:-1])
-    #    msk = msk_img.reshape(m_voxels,msk_img.shape[-1])
+    else:  #we have to remove this, only keeping this for testing
+        msk_file = h5py.File(msk)
+        msk_img = msk_file['M']
+        msk_img = np.array(msk_img)
+        msk_shape = msk_img.shape[:-1]
+        m_voxels = np.prod(msk_img.shape[:-1])
+        msk = msk_img.reshape(m_voxels,msk_img.shape[-1])
+    D_file = scipy.io.loadmat(img)
+    for keys in D_file:
+        D = D_file['D']
+    D = np.array(D)
 
-
-    nx = D.shape[3]
-    nt = D.shape[2]
+    nx = D[1,1].shape[0]
+    nt = D[1,1].shape[1]
     nsubj = D.shape[0]
     nrn = D.shape[1]
 
@@ -76,8 +77,7 @@ def detect(img_affine,D,D_list,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn):
     id =1
     for isbj in range(nsubj):
         for irn in range(nrn):
-                D[isbj,irn] = D_list[id-1]
-                B[:,(id-1)*nt:id*nt] = np.transpose(stats.zscore(D[isbj,irn]))
+                B[:,(id-1)*nt:id*nt] = (stats.zscore(D[isbj,irn]))
                 id += 1
     msk = np.zeros((nx,1))
     msk[(np.sum(abs(B)) > 0)] = 1
@@ -96,7 +96,7 @@ def detect(img_affine,D,D_list,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn):
     #pf2 =
     start_time = time.time()
     #generate qpp
-    time_course, ftp, itp, iter = qppv(img_affine,B, msk, nd, wl, nrp, cth, n_itr_th, mx_itr, pfs)
+    time_course, ftp, itp, iter = qppv(B, msk, nd, wl, nrp, cth, n_itr_th, mx_itr, pfs)
     #choose best template
     FTP1,C_1,Met1 = BSTT(time_course,ftp)
     #regress QPP
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
 
-
+    parser.add_argument("img", type=str,help='Provide the path to the 2D nifti file')
     parser.add_argument("msk", type=str, help='provide the path to the mask of 2D nifti file')
 
 
@@ -129,33 +129,9 @@ if __name__ == "__main__":
     parser.add_argument("nrn",type=int,help='provide the number of runs per subject')
     args = parser.parse_args()
 
-    img_005004 = nib.load('/home/nrajamani/Downloads/QPPvNov18_python/Data/0050004_bet.nii')
-    img_005004_array = np.array(img_005004.dataobj)
-    img_affine = img_005004.affine
-    np.savez('input_array_1',img_005004_array)
-
-    img_005005 = nib.load('/home/nrajamani/Downloads/QPPvNov18_python/Data/0050005_bet.nii')
-    img_005005_array = np.array(img_005005.dataobj)
-    np.savez('input_array_2', img_005005_array)
-
-    img_005006 = nib.load('/home/nrajamani/Downloads/QPPvNov18_python/Data/0050006_bet.nii')
-    img_005006_array = np.array(img_005006.dataobj)
-    np.savez('input_array_3', img_005006_array)
-
-    img_005007 = nib.load('/home/nrajamani/Downloads/QPPvNov18_python/Data/0050006_bet.nii')
-    img_005007_array = np.array(img_005007.dataobj)
-    np.savez('input_array_4', img_005007_array)
 
 
-
-    d2 = os.path.join('/home/nrajamani/Downloads/', '0050004.mat')
-    d3 = os.path.join('/home/nrajamani/Downloads/', '0050005.mat')
-    d4 = os.path.join('/home/nrajamani/Downloads/', '0050006.mat')
-    d5 = os.path.join('/home/nrajamani/Downloads/', '0050007.mat')
-    D,D_list = merger(d2, d3, d4, d5,args.nsubj,args.nrn)
-
-
-    detect(img_affine,D,D_list,args.msk,args.wl,args.nrp,args.cth,args.n_itr_th,args.mx_itr,args.pfs,args.nsubj,args.nrn)
+    detect(args.img,args.msk,args.wl,args.nrp,args.cth,args.n_itr_th,args.mx_itr,args.pfs,args.nsubj,args.nrn)
 
 
 
