@@ -49,7 +49,7 @@ def detect(img,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn):
         msk_img = np.array(data1.dataobj)
         #import msk
 
-        #same for masks
+        #reshape for masks
         msk_shape = msk_img.shape[:-1]
         m_voxels = np.prod(msk_img.shape[:-1])
         msk = msk_img.reshape(m_voxels,msk_img.shape[-1])
@@ -83,7 +83,7 @@ def detect(img,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn):
     msk[(np.sum(abs(B)) > 0)] = 1
     A = np.isnan(B)
     B[A] = 0
-    
+
     with open('b.txt','w') as f:
         for line in B:
             f.write("%s\n" %line)
@@ -98,8 +98,9 @@ def detect(img,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn):
     #generate qpp
     time_course, ftp, itp, iter = qppv(B, msk, nd, wl, nrp, cth, n_itr_th, mx_itr, pfs)
     #choose best template
-    FTP1,C_1,Met1 = BSTT(time_course,ftp)
+    C_1,FTP1,Met1 = BSTT(time_course,ftp)
     #regress QPP
+    print(C_1.shape)
     T =TBLD2WL(B,wl,FTP1)
     Br, C1r=regressqpp(B, nd, T, C_1)
     print("-----%s seconds ----"%(time.time() - start_time))
