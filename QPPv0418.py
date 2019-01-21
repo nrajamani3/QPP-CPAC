@@ -42,11 +42,11 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
        
        Notes:
        -----
-       i) If using a .mat file as an input, save only the image with 'v7.0' to make it scipy.io loadmat compatible
+       i) If using a .mat file as an input, save only the image with flag 'v7.0' to make it scipy.io loadmat compatible
        (This functionality will soon be replaced by importing with NifTi format only)
        
        ii) To show the peaks found in the signal, add a show=True boolean values in the "find peaks" command.
-       A "True" plots the peaks that are found in the signal. 
+       A "True" value plots the peaks that are found in the signal.
        
        Examples:
        --------
@@ -229,8 +229,8 @@ def BSTT(time_course,ftp):
     scmx = np.zeros((nRp,1))
     for i in range(nRp):
         if np.any(ftp[i] != 0):
-            c = ftp[i,:]
-            d = c.tolist()
+            p = ftp[i,:]
+            d = p.tolist()
             scmx[i] =np.sum(time_course[i,int(d[i])])
     isscmx = np.argsort(scmx)[::-1]
     T1 = isscmx[0]
@@ -246,6 +246,7 @@ def BSTT(time_course,ftp):
         Met1[0] = np.median(C_1[:,int(ftp_list[y])]) #trying to do C_1[:,2d array]
     Met1[1] = np.median(np.diff(FTP1))
     Met1[2] = len(FTP1)
+
     return C_1,FTP1,Met1
 
 def TBLD2WL(B,wl,FTP1):
@@ -256,7 +257,7 @@ def TBLD2WL(B,wl,FTP1):
 
     WLhe0= WLhs0-np.remainder(wl,2)
 
-    T = np.zeros((nX,2*wl)) #shape is 61,60
+    T = np.zeros((nX,2*wl)) #shape is 360,60
 
     for i in range(nFTP):
         ts=FTP1[:,i]-WLhs0
@@ -266,14 +267,13 @@ def TBLD2WL(B,wl,FTP1):
         ze = []
         zs = np.array(zs)
         ze = np.array(ze)
-        print(ts)
-        print(te)
+
         if np.any(ts <= 0):
             ts_int = ts.astype(int)
-            zs=np.zeros((nX,abs(ts_int[0])+1))
+            zs=np.zeros((nX,abs(ts_int[0])+2))
             ts=1
         if np.any(te>nT):
-            ze = np.zeros((nX,abs(te_int[0])-nT))
+            ze = np.zeros((nX,abs(te_int[0])-nT+1))
             te=nT
 
 
@@ -285,38 +285,44 @@ def TBLD2WL(B,wl,FTP1):
         #    T=T+concat_arrays2
         #else:
         if ze.size == 0:
-            conct_arrays = np.concatenate(zs,B[:,ts:te_int[0]+1],axis=1)
-            print(conct_arrays.shape)
-            T = T + conct_arrays2
+            conct_arrays = np.concatenate((zs,B[:,ts:te_int[0]+1]),axis=1)
+            T = T + conct_arrays
 
         else:
             conct_arrays = np.concatenate([zs,ze])
             conct_arrays2 = np.concatenate([conct_arrays2,B[:,ts:te_int[0]+1]])
             T = T+conct_arrays2
     T=T/nFTP
+
     return T
 
-def regressqpp(B,nd,T1,C1):
+def regressqpp(B,nd,T1,C_1):
+    #to do: check shape of c in loop
     wl = T1.shape[1]/2
     wlhs = np.round(wl/2)+1
     wlhe=np.round(wl/2)+wl
-    T1c=T1[:,wlhs:wlhe]
+    T1c=T1[:,wlhs:wlhe+1]
+
     nX = B.shape[0]
     nT = B.shape[1]
     nt = nT/nd
 
     Br=np.zeros((nX,nT))
     for i in range(nd):
-        ts=(i-1)*nt
-        c = C1[ts+1:ts+nt]
-    for ix in range(nX):
-        x = np.convolve(c,T1c[ix,:],'valid')
+        ts=(i)*nt
+        c = C_1[:,ts:ts+nt]
+        print (c.shape) #should be 360,60
+        print (T1c[i,:].shape) #should be (1,1200)
+        #both these are 2D arrays and must be converted to 1D array. Using reshape
+        c_rs = c.reshape(c,len(c))
+        t1c_rs = T1c.reshape(T1c,len(T1c))
+        x = np.convolve(c,T1c[i,:],mode='valid')
         y = np.transpose(B[ix,ts+wl:ts+nt])
         x_dot = np.dot(x,x)
         y_dot = np.dot(x,y)
 
         beta=np.linalg.solve(x_dot,y_dot)
-        Br[ix,ts+wl:ts+nt]=y-x*beta
+        Br[i,ts+wl:ts+nt]=y-x*beta
 
     C1r=np.zeros(1,nT)
     ntf=nX*wl
