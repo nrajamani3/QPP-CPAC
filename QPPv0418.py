@@ -246,6 +246,7 @@ def BSTT(time_course,ftp):
         Met1[0] = np.median(C_1[:,int(ftp_list[y])]) #trying to do C_1[:,2d array]
     Met1[1] = np.median(np.diff(FTP1))
     Met1[2] = len(FTP1)
+    #C_1 shape here is always correct
 
     return C_1,FTP1,Met1
 
@@ -285,7 +286,7 @@ def TBLD2WL(B,wl,FTP1):
         #    T=T+concat_arrays2
         #else:
         if ze.size == 0:
-            conct_arrays = np.concatenate((zs,B[:,ts:te_int[0]+1]),axis=1)
+            conct_arrays = np.concatenate((zs,B[:,ts:te_int[0]]),axis=1)
             T = T + conct_arrays
 
         else:
@@ -301,8 +302,10 @@ def regressqpp(B,nd,T1,C_1):
     wl = T1.shape[1]/2
     wlhs = np.round(wl/2)+1
     wlhe=np.round(wl/2)+wl
-    T1c=T1[:,wlhs:wlhe+1]
-
+    T1c=T1[0,wlhs:wlhe]
+    T1c=T1c.reshape(1,-1)
+    T1c=T1c.ravel()
+    #T1c's shape is now (1,30) - 2D, have to make it a 1D array
     nX = B.shape[0]
     nT = B.shape[1]
     nt = nT/nd
@@ -310,19 +313,21 @@ def regressqpp(B,nd,T1,C_1):
     Br=np.zeros((nX,nT))
     for i in range(nd):
         ts=(i)*nt
-        c = C_1[:,ts:ts+nt]
-        print (c.shape) #should be 360,60
-        print (T1c[i,:].shape) #should be (1,1200)
+        c = C_1[0,ts:ts+nt]
+        c=c.reshape(1,-1)
+        c=c.ravel()
+        #c's shape is now (1,1200)-2D, have to make it a 1D array
+        #should be 1,1200
+         #should be (1,1200)
         #both these are 2D arrays and must be converted to 1D array. Using reshape
-        c_rs = c.reshape(c,len(c))
-        t1c_rs = T1c.reshape(T1c,len(T1c))
-        x = np.convolve(c,T1c[i,:],mode='valid')
-        y = np.transpose(B[ix,ts+wl:ts+nt])
-        x_dot = np.dot(x,x)
-        y_dot = np.dot(x,y)
-
-        beta=np.linalg.solve(x_dot,y_dot)
-        Br[i,ts+wl:ts+nt]=y-x*beta
+        for ix in range(nd):
+            #t1c_rs = T1c.reshape(T1c,len(T1c))
+            x = np.convolve(c,T1c,mode='valid')
+            y = np.transpose(B[ix,ts+wl:ts+nt])
+            x_dot = np.dot(x,x)
+            y_dot = np.dot(x,y)
+            beta=np.linalg.solve(x_dot,y_dot)
+            Br[ix,ts+wl:ts+nt]=y-x*beta
 
     C1r=np.zeros(1,nT)
     ntf=nX*wl
