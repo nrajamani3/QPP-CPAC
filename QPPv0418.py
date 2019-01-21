@@ -231,6 +231,7 @@ def BSTT(time_course,ftp):
         if np.any(ftp[i] != 0):
             p = ftp[i,:]
             d = p.tolist()
+            #check out the list index out of range error that pops up
             scmx[i] =np.sum(time_course[i,int(d[i])])
     isscmx = np.argsort(scmx)[::-1]
     T1 = isscmx[0]
@@ -302,7 +303,7 @@ def regressqpp(B,nd,T1,C_1):
     wl = T1.shape[1]/2
     wlhs = np.round(wl/2)+1
     wlhe=np.round(wl/2)+wl
-    T1c=T1[0,wlhs:wlhe]
+    T1c=T1[0,wlhs:wlhe+1]
     T1c=T1c.reshape(1,-1)
     T1c=T1c.ravel()
     #T1c's shape is now (1,30) - 2D, have to make it a 1D array
@@ -323,10 +324,13 @@ def regressqpp(B,nd,T1,C_1):
         for ix in range(nd):
             #t1c_rs = T1c.reshape(T1c,len(T1c))
             x = np.convolve(c,T1c,mode='valid')
-            y = np.transpose(B[ix,ts+wl:ts+nt])
+
+            y = np.transpose(B[ix,ts+wl:ts+nt+1])
+
             x_dot = np.dot(x,x)
             y_dot = np.dot(x,y)
-            beta=np.linalg.solve(x_dot,y_dot)
+            #beta=np.linalg.solve(x_dot,y_dot)
+            beta=np.reciprocal(x_dot/y_dot)
             Br[ix,ts+wl:ts+nt]=y-x*beta
 
     C1r=np.zeros(1,nT)
