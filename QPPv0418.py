@@ -301,12 +301,12 @@ def TBLD2WL(B,wl,FTP1):
 def regressqpp(B,nd,T1,C_1):
     #to do: check shape of c in loop
     wl = T1.shape[1]/2
-    wlhs = np.round(wl/2)+1
+    wlhs = np.round(wl/2)
     wlhe=np.round(wl/2)+wl
-    T1c=T1[0,wlhs:wlhe+1]
-    T1c=T1c.reshape(1,-1)
+    T1c=T1[0,wlhs:wlhe]
+    #T1c=T1c.reshape(1,-1)
     # T1c's shape is now (1,30) - 2D, have to make it a 1D array
-    T1c=T1c.ravel()
+    #T1c=T1c.ravel()
 
     nX = B.shape[0]
     nT = B.shape[1]
@@ -316,13 +316,13 @@ def regressqpp(B,nd,T1,C_1):
     for i in range(nd):
         ts=(i)*nt
         c = C_1[0,ts:ts+nt]
-        c=c.reshape(1,-1)
+        #c=c.reshape(1,-1)
         # c's shape is now (1,1200)-2D, have to make it a 1D array
-        c=c.ravel()
+        #c=c.ravel()
 
         for ix in range(nd):
             x = np.convolve(c,T1c,mode='valid')
-            y = np.transpose(B[ix,ts+wl:ts+nt+1])
+            y = B[ix,ts+wl:ts+nt]
             x_dot = np.dot(x,x)
             y_dot = np.dot(x,y)
             #beta=np.linalg.solve(x_dot,y_dot)
