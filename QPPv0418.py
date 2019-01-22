@@ -340,11 +340,12 @@ def regressqpp(B,nd,T1,C_1):
             T=T-np.sum(T)/ntf
             bch = T/np.sqrt(np.dot(T,T))
             C1r[:,ts+ich]=np.dot(T1n,bch)
-
-    print(C1r.shape)
-    np.save('regressor file',C1r)
-    plt.plot(C_1,'b')
-    #plt.plot(C1r,'r')
+    C_1_plt = C_1.flatten()
+    C1r_plt = C1r.flatten()
+    np.savetxt('regressor file',C1r)
+    #np.save('regressor file',C1r)
+    plt.plot(C_1_plt,'b')
+    plt.plot(C1r_plt,'r')
     plt.axis([0,nd*nt,-1,1])
     plt.xticks(np.arange(nt,nT,step=nt))
     plt.yticks(np.arange(-1,1,step=0.2))
