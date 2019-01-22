@@ -165,7 +165,7 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
             for i in range(nd):
                 for ich in range(nch):
                     c[i*nt+ich]=np.dot(template,bchfn[(i)*nt+ich])
-            peaks=detect_peaks(c,mph=cth[1],mpd=wl)
+            peaks=detect_peaks(c,mph=cth[1],mpd=wl,show=True)
             for i in range(nd):
                 if i * nt in peaks:
                     peaks = np.delete(peaks, np.where(peaks == (i) * nt))
@@ -206,6 +206,9 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     np.save('iter_file',iter)
     np.save('itp_file',itp)
 
+
+
+
     return time_course,ftp,itp,iter
 
 
@@ -219,7 +222,7 @@ def z(x,y):
         z = (x_trans*y)/norm(x)/norm(y)
     return z
 
-def BSTT(time_course,ftp):
+def BSTT(time_course,ftp,nd,nt):
     #load the important files into this
 
     nRp = time_course.shape[0]
@@ -245,7 +248,15 @@ def BSTT(time_course,ftp):
         Met1[0] = np.median(C_1[:,int(ftp_list[y])]) #trying to do C_1[:,2d array]
     Met1[1] = np.median(np.diff(FTP1))
     Met1[2] = len(FTP1)
-    #C_1 shape here is always correct
+    # plots
+    # QPP correlation timecourse and metrics
+    C_1_plt = C_1.flatten()
+    plt.plot(C_1_plt,'b')
+    #plt.plot(C_1_plt[FTP1_flat],'r')
+    plt.axis([0,nd*nt,-1,1])
+    plt.xticks(np.arange(nt,nT,step=nt))
+    plt.yticks(np.arange(-1,1,step=0.2))
+    plt.show()
 
     return C_1,FTP1,Met1
 
