@@ -50,10 +50,8 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
        
        Examples:
        --------
-       >> python detectqpp.py  python detectqppv.py '/path/to/Data/file.mat' 
-       'path/to/mask/file/' 
-       30 6 0.2 0.3 1 15 
-       'path/to/save/results/' 6 1
+       >> python detectqppv.py '/path/to/Data/file.mat'
+       'path/to/mask/file/' 30 6 0.2 0.3 1 15 'path/to/save/results/' 6 1
     """
     #get parameters of the image shape to decide the
     #shape of the cells,arrays,etc
@@ -300,18 +298,15 @@ def TBLD2WL(B,wl,FTP1):
 
 def regressqpp(B,nd,T1,C_1):
     #to do: check shape of c in loop
-    wl = T1.shape[1]/2
+    wl = np.round(T1.shape[1]/2)
     wlhs = np.round(wl/2)
     wlhe=np.round(wl/2)+wl
     T1c=T1[0,wlhs:wlhe]
-    #T1c=T1c.reshape(1,-1)
-    # T1c's shape is now (1,30) - 2D, have to make it a 1D array
-    #T1c=T1c.ravel()
-
+    T1c_new =T1[:,wlhs:wlhe]
     nX = B.shape[0]
     nT = B.shape[1]
     nt = nT/nd
-
+    nTf = (nX * wl)
     Br=np.zeros((nX,nT))
     for i in range(nd):
         ts=(i)*nt
@@ -322,31 +317,30 @@ def regressqpp(B,nd,T1,C_1):
 
         for ix in range(nd):
             x = np.convolve(c,T1c,mode='valid')
-            y = B[ix,ts+wl:ts+nt]
+            y = B[ix,ts+wl-1:ts+nt]
             x_dot = np.dot(x,x)
             y_dot = np.dot(x,y)
             #beta=np.linalg.solve(x_dot,y_dot)
-            beta=1/(x_dot/y_dot)
+            beta=y_dot/x_dot
+            Br[ix,ts+wl-1:ts+nt]=y-x*beta
 
-
-            Br[ix,ts+wl:ts+nt+1]=y-x*beta
-
-    C1r=np.zeros(1,nT)
+    C1r=np.zeros((1,nT))
     ntf=nX*wl
-    T=T1c
-    #T=np.flatten(T1c)
+    T=np.array(T1c_new.reshape(T1c_new.shape[0]*T1c_new.shape[1]))
     T=T-np.sum(T)/nTf
-    T=T/sqrt(np.dot(T,T))
-    T1n = np.transpose(T)
-
+    t_dot = np.dot(T,T)
+    T=T/np.sqrt(t_dot)
+    T1n = T.reshape(1,-1)
+    print(T1n.shape)
     for i in range(nd):
-        ts=(i-1)*nt
-    for ich in range(nt-wl+1):
-        T = Br[:,ts+ich:ts+ich+wl-1]
-        T = np.flatten(T)
-        T=T-np.sum(T)/nTf
-        bch = T/np.sqrt(np.dot(T,T))
-        C1r[:,ts+ich]=T1n*bch
+        ts=(i)*nt
+        for ich in range(nt-wl):
+            T = Br[:,ts+ich:ts+ich+wl]
+            
+            T=T-np.sum(T)/ntf
+            bch = T/np.sqrt(np.dot(T,T))
+            C1r[:,ts+ich]=T1n*bch
+            print(C1r.shape)
     return Br,C1r
 
 if __name__ == '__main__':
