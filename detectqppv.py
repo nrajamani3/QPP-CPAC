@@ -98,7 +98,7 @@ def detect(img,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn):
     #generate qpp
     time_course, ftp, itp, iter = qppv(B, msk, nd, wl, nrp, cth, n_itr_th, mx_itr, pfs)
     #choose best template
-    C_1,FTP1,Met1 = BSTT(time_course,ftp)
+    C_1,FTP1,Met1 = BSTT(time_course,ftp,nd,nt)
     #regress QPP
 
     T =TBLD2WL(B,wl,FTP1)
