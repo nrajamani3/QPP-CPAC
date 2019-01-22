@@ -336,7 +336,7 @@ def regressqpp(B,nd,T1,C_1):
         ts=(i)*nt
         for ich in range(nt-wl):
             T = Br[:,ts+ich:ts+ich+wl]
-            
+            T=T.flatten()
             T=T-np.sum(T)/ntf
             bch = T/np.sqrt(np.dot(T,T))
             C1r[:,ts+ich]=T1n*bch
