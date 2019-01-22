@@ -222,16 +222,19 @@ def z(x,y):
         z = (x_trans*y)/norm(x)/norm(y)
     return z
 
-def BSTT(time_course,ftp,nd,nt,nT):
+def BSTT(time_course,ftp,nd,B):
     #load the important files into this
-
+    nT = B.shape[1]  # smaller value
+    nX = B.shape[0]  # larger value
+    nt = int(nT / nd)  # to prevent floating point errors during initializations
     nRp = time_course.shape[0]
-
+    print(nRp)
     scmx = np.zeros((nRp,1))
     for i in range(nRp):
         if np.any(ftp[i] != 0):
             p = ftp[i,:]
             d = p.tolist()
+            print(d.shape)
             #check out the list index out of range error that pops up
             scmx[i] =np.sum(time_course[i,int(d[i])])
     isscmx = np.argsort(scmx)[::-1]
