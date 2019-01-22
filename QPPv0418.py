@@ -341,9 +341,13 @@ def regressqpp(B,nd,T1,C_1):
             bch = T/np.sqrt(np.dot(T,T))
             C1r[:,ts+ich]=np.dot(T1n,bch)
 
-
+    print(C1r.shape)
+    np.save('regressor file',C1r)
     plt.plot(C_1,'b')
-    plt.plot(C1r,'r')
+    #plt.plot(C1r,'r')
+    plt.axis([0,nd*nt,-1,1])
+    plt.xticks(np.arange(nt,nT,step=nt))
+    plt.yticks(np.arange(-1,1,step=0.2))
     plt.show()
 
     return Br, C1r
