@@ -100,7 +100,7 @@ def detect(img,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn):
     #choose best template
     C_1,FTP1,Met1 = BSTT(time_course,ftp)
     #regress QPP
-    print(C_1.shape)
+
     T =TBLD2WL(B,wl,FTP1)
     Br, C1r=regressqpp(B, nd, T, C_1)
     print("-----%s seconds ----"%(time.time() - start_time))
