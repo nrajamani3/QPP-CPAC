@@ -331,7 +331,7 @@ def regressqpp(B,nd,T1,C_1):
     t_dot = np.dot(T,T)
     T=T/np.sqrt(t_dot)
     T1n = T.reshape(1,-1)
-    print(T1n.shape)
+
     for i in range(nd):
         ts=(i)*nt
         for ich in range(nt-wl):
@@ -339,10 +339,14 @@ def regressqpp(B,nd,T1,C_1):
             T=T.flatten()
             T=T-np.sum(T)/ntf
             bch = T/np.sqrt(np.dot(T,T))
-            C1r[:,ts+ich]=T1n*bch
-            print(C1r.shape)
-    return Br,C1r
+            C1r[:,ts+ich]=np.dot(T1n,bch)
 
+
+    plt.plot(C_1,'b')
+    plt.plot(C1r,'r')
+    plt.show()
+
+    return Br, C1r
 if __name__ == '__main__':
 
     qppv(d,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs)
