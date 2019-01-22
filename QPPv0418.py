@@ -305,8 +305,9 @@ def regressqpp(B,nd,T1,C_1):
     wlhe=np.round(wl/2)+wl
     T1c=T1[0,wlhs:wlhe+1]
     T1c=T1c.reshape(1,-1)
+    # T1c's shape is now (1,30) - 2D, have to make it a 1D array
     T1c=T1c.ravel()
-    #T1c's shape is now (1,30) - 2D, have to make it a 1D array
+
     nX = B.shape[0]
     nT = B.shape[1]
     nt = nT/nd
@@ -316,26 +317,24 @@ def regressqpp(B,nd,T1,C_1):
         ts=(i)*nt
         c = C_1[0,ts:ts+nt]
         c=c.reshape(1,-1)
+        # c's shape is now (1,1200)-2D, have to make it a 1D array
         c=c.ravel()
-        #c's shape is now (1,1200)-2D, have to make it a 1D array
-        #should be 1,1200
-         #should be (1,1200)
-        #both these are 2D arrays and must be converted to 1D array. Using reshape
+
         for ix in range(nd):
-            #t1c_rs = T1c.reshape(T1c,len(T1c))
             x = np.convolve(c,T1c,mode='valid')
-
             y = np.transpose(B[ix,ts+wl:ts+nt+1])
-
             x_dot = np.dot(x,x)
             y_dot = np.dot(x,y)
             #beta=np.linalg.solve(x_dot,y_dot)
-            beta=np.reciprocal(x_dot/y_dot)
-            Br[ix,ts+wl:ts+nt]=y-x*beta
+            beta=1/(x_dot/y_dot)
+
+
+            Br[ix,ts+wl:ts+nt+1]=y-x*beta
 
     C1r=np.zeros(1,nT)
     ntf=nX*wl
-    T=np.flatten(T1c)
+    T=T1c
+    #T=np.flatten(T1c)
     T=T-np.sum(T)/nTf
     T=T/sqrt(np.dot(T,T))
     T1n = np.transpose(T)
