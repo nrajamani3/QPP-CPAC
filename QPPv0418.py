@@ -165,7 +165,7 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
             for i in range(nd):
                 for ich in range(nch):
                     c[i*nt+ich]=np.dot(template,bchfn[(i)*nt+ich])
-            peaks=detect_peaks(c,mph=cth[1],mpd=wl,show=True)
+            peaks=detect_peaks(c,mph=cth[1],mpd=wl)
             for i in range(nd):
                 if i * nt in peaks:
                     peaks = np.delete(peaks, np.where(peaks == (i) * nt))
@@ -222,7 +222,7 @@ def z(x,y):
         z = (x_trans*y)/norm(x)/norm(y)
     return z
 
-def BSTT(time_course,ftp,nd,nt):
+def BSTT(time_course,ftp,nd,nt,nT):
     #load the important files into this
 
     nRp = time_course.shape[0]
