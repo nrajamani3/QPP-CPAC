@@ -228,15 +228,15 @@ def BSTT(time_course,ftp,nd,B):
     nX = B.shape[0]  # larger value
     nt = int(nT / nd)  # to prevent floating point errors during initializations
     nRp = time_course.shape[0]
-    print(nRp)
+
     scmx = np.zeros((nRp,1))
     for i in range(nRp):
         if np.any(ftp[i] != 0):
             p = ftp[i,:]
             d = p.tolist()
-            print(d.shape)
+            d = map(int,d)
             #check out the list index out of range error that pops up
-            scmx[i] =np.sum(time_course[i,int(d[i])])
+            scmx[i] =np.sum(time_course[i,d[i]])
     isscmx = np.argsort(scmx)[::-1]
     T1 = isscmx[0]
     C_1 = time_course[T1,:]
