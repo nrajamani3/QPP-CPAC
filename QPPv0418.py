@@ -102,7 +102,7 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     i2x = ndarray.flatten(i2x)
     itp = np.delete(itp,i2x-1,0)
     #permute the numbers within ITP
-    itp = np.random.permutation(itp)
+    itp = np.random.RandomState(seed=42).permutation(itp)
 
     #itp = np.random.RandomState(seed=42).permutation(itp)
     itp = itp[0:nrp]
@@ -206,9 +206,6 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     np.save('iter_file',iter)
     np.save('itp_file',itp)
 
-
-
-
     return time_course,ftp,itp,iter
 
 
@@ -237,6 +234,7 @@ def BSTT(time_course,ftp,nd,B):
             d = map(int,d)
             #check out the list index out of range error that pops up
             scmx[i] =np.sum(time_course[i,d[i]])
+
     isscmx = np.argsort(scmx)[::-1]
     T1 = isscmx[0]
     C_1 = time_course[T1,:]
@@ -248,7 +246,7 @@ def BSTT(time_course,ftp,nd,B):
 
     Met1 = np.empty(3)
     for y in range(len(ftp_list)):
-        Met1[0] = np.median(C_1[:,int(ftp_list[y])]) #trying to do C_1[:,2d array]
+        Met1[0] = np.median(C_1[:,int(ftp_list[y])])
     Met1[1] = np.median(np.diff(FTP1))
     Met1[2] = len(FTP1)
     # plots
@@ -259,6 +257,8 @@ def BSTT(time_course,ftp,nd,B):
     plt.axis([0,nd*nt,-1,1])
     plt.xticks(np.arange(nt,nT,step=nt))
     plt.yticks(np.arange(-1,1,step=0.2))
+    plt.xlabel('Time course')
+    plt.title('QPP 2D array')
     plt.show()
 
     return C_1,FTP1,Met1
@@ -310,7 +310,7 @@ def TBLD2WL(B,wl,FTP1):
 
     return T
 
-def regressqpp(B,nd,T1,C_1):
+def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
     #to do: check shape of c in loop
     wl = np.round(T1.shape[1]/2)
     wlhs = np.round(wl/2)
@@ -363,9 +363,67 @@ def regressqpp(B,nd,T1,C_1):
     plt.axis([0,nd*nt,-1,1])
     plt.xticks(np.arange(nt,nT,step=nt))
     plt.yticks(np.arange(-1,1,step=0.2))
+    plt.title('Time course overlapped with regressor')
     plt.show()
-
+    if glassr_360:
+        indu=np.nonzero(np.triu(np.ones(nX),1))
+        indl=np.nonzero(np.tril(np.ones(nX),-1))
+        FCF=np.empty(nX)
+        FC=np.correlate(RDRG2Y7(np.transpose(B)))
+        FCF[indu] = FC[indu]
+        FC=np.correlate(RDG2Y7(np.transpose(Br)))
+        FCF[indl]=FCP[indl]
+        plt.imshow(x=FCP,cmap='jet',vmin=-0.6,vmax=0.8)
+        plt.axis('equal')
+        plt.colorbar
+        for i in range(2,7):
+            arr_1 = np.array([0,nX])
+            arr_2=np.array[nind[i],nind[i]]
+            plt.plot(arr_1,arr_2,'k')
+            plt.plot(aa_2,arr_1,'k')
+            plt.xticks(p4lb)
+            plt.ytics(p4lb)
     return Br, C1r
+
+def RDRG2Y7(bi):
+    glassr_file = scipy.io.loadmat('myGlssr360.mat')
+    for keys in glassr_file:
+        g2y7=glassr_file['G2Y7']
+        ylb1=glassr_file['YLB1']
+        ylb=glassr_file['YLB']
+
+    g2y7=g2y7.tolist()
+    ylb1=np.array(ylb1)
+    ylb=np.array(ylb)
+    n=7
+
+    ind=np.zeros((n,n),dtype=np.int)#shape(7,360)
+    ind = ind.tolist()
+    nind=np.zeros((n+1,1))
+    for i in range(n):
+        ind[i]=(np.where(g2y7==i))
+        nind[i+1]=len(ind[i])
+    for i in ind:
+        for j in i:
+            j.tolist()
+            int(j)
+    nind=np.cumsum(nind)
+    bo=np.zeros(bi.shape)
+    for i in range(n):
+        bo[nind[i]+1:nind[i+1],:]=bi[ind[i],:]
+    p4lb=np.zeros((n,1))
+    for i in range(size(nind)-1):
+        p4lb[i]=nind[i]+(nind[i+1]-nind[i])/2
+    return nind,p4lb,ylb
+
+
+
+
+
+
+
+
+
 if __name__ == '__main__':
 
     qppv(d,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs)
