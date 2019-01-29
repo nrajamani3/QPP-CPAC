@@ -102,7 +102,7 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     i2x = ndarray.flatten(i2x)
     itp = np.delete(itp,i2x-1,0)
     #permute the numbers within ITP
-    itp = np.random.RandomState(seed=42).permutation(itp)
+    #itp = np.random.RandomState(seed=42).permutation(itp)
 
     #itp = np.random.RandomState(seed=42).permutation(itp)
     itp = itp[0:nrp]
@@ -233,7 +233,7 @@ def BSTT(time_course,ftp,nd,B):
             d = p.tolist()
             d = map(int,d)
             #check out the list index out of range error that pops up
-            scmx[i] =np.sum(time_course[i,d[i]])
+            scmx[i] =np.sum(time_course[i,d])
 
     isscmx = np.argsort(scmx)[::-1]
     T1 = isscmx[0]
@@ -392,25 +392,22 @@ def RDRG2Y7(bi):
         ylb1=glassr_file['YLB1']
         ylb=glassr_file['YLB']
 
-    g2y7=g2y7.tolist()
+    g2y7=np.array(g2y7)
     ylb1=np.array(ylb1)
     ylb=np.array(ylb)
     n=7
-
-    ind=np.zeros((n,n),dtype=np.int)#shape(7,360)
-    ind = ind.tolist()
+    #print(g2y7.shape)
     nind=np.zeros((n+1,1))
     for i in range(n):
-        ind[i]=(np.where(g2y7==i))
-        nind[i+1]=len(ind[i])
+        ind=[np.where(g2y7==i)]
+        nind[i+1]=len(ind)
+        print(type(ind))
     for i in ind:
-        for j in i:
-            j.tolist()
-            int(j)
+        print
     nind=np.cumsum(nind)
     bo=np.zeros(bi.shape)
     for i in range(n):
-        bo[nind[i]+1:nind[i+1],:]=bi[ind[i],:]
+        bo[nind[i]+1:nind[i+1],:]=bi[ind,:]
     p4lb=np.zeros((n,1))
     for i in range(size(nind)-1):
         p4lb[i]=nind[i]+(nind[i+1]-nind[i])/2
