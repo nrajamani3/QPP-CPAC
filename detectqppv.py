@@ -17,6 +17,7 @@ def detect(img,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360,Yeo_7):
         for keys in D_file:
             D = D_file['D']
         D = np.array(D)
+
     else:
         D_file = nib.load(img)
         D_img = np.array([[D_file.dataobj]])
@@ -53,8 +54,9 @@ def detect(img,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360,Yeo_7):
     id =1
     for isbj in range(nsubj):
         for irn in range(nrn):
-                B[:,(id-1)*nt:id*nt] = (stats.zscore(D[isbj,irn]))
+                B[:,(id-1)*nt:id*nt] = (stats.zscore(D[isbj,irn],axis=1))
                 id += 1
+    B=np.around(B, decimals=4)
     msk = np.zeros((nx,1))
     msk[(np.sum(abs(B)) > 0)] = 1
     A = np.isnan(B)
