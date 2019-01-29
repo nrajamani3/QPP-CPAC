@@ -102,7 +102,7 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     i2x = ndarray.flatten(i2x)
     itp = np.delete(itp,i2x-1,0)
     #permute the numbers within ITP
-    #itp = np.random.RandomState(seed=42).permutation(itp)
+    itp = np.random.permutation(itp)
 
     #itp = np.random.RandomState(seed=42).permutation(itp)
     itp = itp[0:nrp]
