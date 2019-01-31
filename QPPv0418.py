@@ -385,18 +385,19 @@ def RDRG2Y7(bi):
 
     n=7
     #print(g2y7.shape)
-    nind=np.zeros((n+1,1))
+    nind=np.zeros(n+1)
     for i in range(n):
         ind=np.where(g2y7==i)
         nind[i+1]=len(ind)
-    for i in range(len(ind)):
-        ind=ind[i].tolist()
-    ind=[[int(x) for x in i]for i in ind]
-    print(ind)
+    for x in range(len(ind)):
+        ind[x].tolist()
+    ind_flat = [item for sublist in ind for item in sublist]
+    ind_flat = [int(x) for x in ind_flat]
+
     nind=np.cumsum(nind)
     bo=np.zeros(bi.shape)
     for i in range(n):
-        bo[nind[i]+1:nind[i+1],:]=bi[ind,:]
+        bo[nind[i]+1:nind[i+1],:]=bi[ind_flat,:]
     p4lb=np.zeros(n)
     for i in range(size(nind)-1):
         p4lb[i]=nind[i]+(nind[i+1]-nind[i])/2
