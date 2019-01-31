@@ -66,6 +66,9 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     #no real use of mask anywhere else?
     msk = np.zeros((nX,1))
     msk[(np.sum(abs(B)) > 0)] = 1
+    a = np.where(msk[:,0]==1)
+    B=B[a[0],:]
+
     #defining 3D arrayshere. Each array within the 2D array will finally be a nX*wl shape column vector, which will store the template values
     bchf = np.zeros((nT,nX*wl))
     bchfn = np.zeros((nT,nX*wl))
@@ -91,6 +94,7 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
             A = np.isnan(bchfn)
             bchfn[A] = 0
         #todo: have to make args.nd and other args.something as just the variable name
+
     #array initialized to later be deleted from the random ITP array
     i2x=np.zeros((nd,wl-1))
     #filling the sequence with range of numbers from wl+2 to nt
@@ -100,16 +104,18 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     #delete instances of ITP from i2x
     itp=np.arange(1,nT+1)
     i2x = ndarray.flatten(i2x)
+
     itp = np.delete(itp,i2x-1,0)
     #permute the numbers within ITP
-    itp = np.random.permutation(itp)
+    #itp = np.random.permutation(itp)
 
     #itp = np.random.RandomState(seed=42).permutation(itp)
     itp = itp[0:nrp]
 
     #Initialize the time course that will later on be saved
     time_course=np.zeros((nrp,nT))
-
+    ftp = []
+    iter = np.zeros(nrp)
     for irp in range(nrp):
         #initialize a matrix c which will hold the templates
         c=np.zeros(nT)
@@ -181,30 +187,31 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
             c_0=c
             itr=itr+1
 
-        ftp = np.zeros((nrp, peaks.shape[0]))
-        iter = np.zeros(nrp)
         if peaks_size>1:
             time_course[irp,:]=c
-            ftp[irp]=peaks
+            ftp.append(peaks)
             iter[irp]=itr
     #save everything!!
 
-
+    plt.plot(template,'b')
+    plt.title('Template of QPP(nd=6,wl=30,subjects=3)')
+    plt.xlabel('avg of func.data of length WL(30)')
+    plt.show()
     mdict = {}
     mdict["C"] = time_course
     mdict["FTP"] = ftp
     mdict["ITER"] = iter
     mdict["ITP"] = itp
     #time_course_reshaped= np.reshape(time_course,((4,4,73,61)))
-    np.savez('out_array_reshape', time_course)
-    nifti_c = nib.Nifti1Image(time_course,np.eye(4))
-    nib.save(nifti_c, 'nifti_c.nii')
+    #np.savez('out_array_reshape', time_course)
+    #nifti_c = nib.Nifti1Image(time_course,np.eye(4))
+    #nib.save(nifti_c, 'nifti_c.nii')
     #print(time_course_reshaped[20:30])
 
-    np.save('time_course_file',time_course)
-    np.save('ftp_file',ftp)
-    np.save('iter_file',iter)
-    np.save('itp_file',itp)
+    #np.save('time_course_file',time_course)
+    #np.save('ftp_file',ftp)
+    #np.save('iter_file',iter)
+    #np.save('itp_file',itp)
 
     return time_course,ftp,itp,iter
 
@@ -225,41 +232,34 @@ def BSTT(time_course,ftp,nd,B):
     nX = B.shape[0]  # larger value
     nt = int(nT / nd)  # to prevent floating point errors during initializations
     nRp = time_course.shape[0]
-
-    scmx = np.zeros((nRp,1))
+    scmx = np.zeros(nRp)
     for i in range(nRp):
         if np.any(ftp[i] != 0):
-            p = ftp[i,:]
-            d = p.tolist()
-            d = map(int,d)
+            p = ftp[i]
+            p = [int(x) for x in p]
             #check out the list index out of range error that pops up
-            scmx[i] =np.sum(time_course[i,d])
+            scmx[i] =np.sum(time_course[i,p])
 
     isscmx = np.argsort(scmx)[::-1]
     T1 = isscmx[0]
     C_1 = time_course[T1,:]
-
-    FTP1 = ftp[T1] #this is a 2D array
-
-    FTP1_flat = FTP1.flatten()
-    ftp_list = FTP1_flat.tolist()
-
+    FTP1 = ftp[T1]
     Met1 = np.empty(3)
-    for y in range(len(ftp_list)):
-        Met1[0] = np.median(C_1[:,int(ftp_list[y])])
+    FTP1 = [int(x) for x in FTP1]
+    Met1[0] = np.median(C_1[FTP1])
     Met1[1] = np.median(np.diff(FTP1))
     Met1[2] = len(FTP1)
     # plots
     # QPP correlation timecourse and metrics
-    C_1_plt = C_1.flatten()
-    plt.plot(C_1_plt,'b')
-    #plt.plot(C_1_plt[FTP1_flat],'r')
-    plt.axis([0,nd*nt,-1,1])
-    plt.xticks(np.arange(nt,nT,step=nt))
-    plt.yticks(np.arange(-1,1,step=0.2))
-    plt.xlabel('Time course')
-    plt.title('QPP 2D array')
-    plt.show()
+
+    #plt.plot(C_1,'b')
+    #plt.plot(FTP1,C_1[FTP1],'g^')
+    #plt.axis([0,nd*nt,-1,1])
+    #plt.xticks(np.arange(nt,nT,step=nt))
+    #plt.yticks(np.arange(-1,1,step=0.2))
+    #plt.xlabel('Time points of functional data,TR(s)')
+    #plt.title('QPP 2D array')
+    #plt.show()
 
     return C_1,FTP1,Met1
 
@@ -274,38 +274,29 @@ def TBLD2WL(B,wl,FTP1):
     T = np.zeros((nX,2*wl)) #shape is 360,60
 
     for i in range(nFTP):
-        ts=FTP1[:,i]-WLhs0
-        te=FTP1[:,i]+wl-1+WLhe0
-        te_int = te.astype(int)
-        zs = []
-        ze = []
-        zs = np.array(zs)
-        ze = np.array(ze)
+        ts=FTP1[i]-WLhs0
+        ts_int = int(ts)
 
-        if np.any(ts <= 0):
-            ts_int = ts.astype(int)
-            zs=np.zeros((nX,abs(ts_int[0])+2))
+        te=FTP1[i]+wl-1+WLhe0
+        te_int = int(te)
+
+        zs=None
+        ze=None
+        if ts <= 0:
+            zs=np.zeros((nX,abs(ts_int)+2))
             ts=1
-        if np.any(te>nT):
-            ze = np.zeros((nX,abs(te_int[0])-nT+1))
+        if te>nT:
+            ze = np.zeros((nX,abs(te_int)-nT+1))
             te=nT
-
-
-        #    if ts == 1 or te > ts:
-        #        temp = np.zeros((nX,te_int[0]-ts))
-        #    else:
-        #        temp = np.zeros((nX,ts-te_int[0]))
-        #    concat_arrays2 = np.concatenate([temp,B[:,ts:te_int[0]]])
-        #    T=T+concat_arrays2
-        #else:
-        if ze.size == 0:
-            conct_arrays = np.concatenate((zs,B[:,ts:te_int[0]]),axis=1)
-            T = T + conct_arrays
-
+        if zs:
+            conct_array = np.concatenate((zs,B[:,ts_int:te_int+1]))
         else:
-            conct_arrays = np.concatenate([zs,ze])
-            conct_arrays2 = np.concatenate([conct_arrays2,B[:,ts:te_int[0]+1]])
-            T = T+conct_arrays2
+            conct_array = B[:, ts_int:te_int+1]
+        if ze:
+            conct_array2 = np.concatenate([conct_array,ze])
+        else:
+            conct_array2 = conct_array
+        T = T+conct_array2
     T=T/nFTP
 
     return T
@@ -324,7 +315,7 @@ def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
     Br=np.zeros((nX,nT))
     for i in range(nd):
         ts=(i)*nt
-        c = C_1[0,ts:ts+nt]
+        c = C_1[ts:ts+nt]
         #c=c.reshape(1,-1)
         # c's shape is now (1,1200)-2D, have to make it a 1D array
         #c=c.ravel()
@@ -354,17 +345,17 @@ def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
             T=T-np.sum(T)/ntf
             bch = T/np.sqrt(np.dot(T,T))
             C1r[:,ts+ich]=np.dot(T1n,bch)
-    C_1_plt = C_1.flatten()
-    C1r_plt = C1r.flatten()
-    np.savetxt('regressor file',C1r)
+
+    #C1r_plt = C1r.flatten()
+    #np.savetxt('regressor file',C1r)
     #np.save('regressor file',C1r)
-    plt.plot(C_1_plt,'b')
-    plt.plot(C1r_plt,'r')
-    plt.axis([0,nd*nt,-1,1])
-    plt.xticks(np.arange(nt,nT,step=nt))
-    plt.yticks(np.arange(-1,1,step=0.2))
-    plt.title('Time course overlapped with regressor')
-    plt.show()
+    #plt.plot(C_1_plt,'b')
+    #plt.plot(C1r_plt,'r')
+    #plt.axis([0,nd*nt,-1,1])
+    #plt.xticks(np.arange(nt,nT,step=nt))
+    #plt.yticks(np.arange(-1,1,step=0.2))
+    #plt.title('Time course overlapped with regressor')
+    #plt.show()
     if glassr_360:
         indu=np.nonzero(np.triu(np.ones(nX),1))
         indl=np.nonzero(np.tril(np.ones(nX),-1))
@@ -392,23 +383,21 @@ def RDRG2Y7(bi):
         ylb1=glassr_file['YLB1']
         ylb=glassr_file['YLB']
 
-    g2y7=np.array(g2y7)
-    ylb1=np.array(ylb1)
-    ylb=np.array(ylb)
     n=7
     #print(g2y7.shape)
     nind=np.zeros((n+1,1))
     for i in range(n):
-        ind=[np.where(g2y7==i)]
+        ind=np.where(g2y7==i)
         nind[i+1]=len(ind)
-        print(type(ind))
-    for i in ind:
-        print
+    for i in range(len(ind)):
+        ind=ind[i].tolist()
+    ind=[[int(x) for x in i]for i in ind]
+    print(ind)
     nind=np.cumsum(nind)
     bo=np.zeros(bi.shape)
     for i in range(n):
         bo[nind[i]+1:nind[i+1],:]=bi[ind,:]
-    p4lb=np.zeros((n,1))
+    p4lb=np.zeros(n)
     for i in range(size(nind)-1):
         p4lb[i]=nind[i]+(nind[i+1]-nind[i])/2
     return nind,p4lb,ylb
