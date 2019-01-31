@@ -11,7 +11,7 @@ import time
 
 
 
-def detect(img,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360,Yeo_7):
+def detect(img,mask,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360,Yeo_7):
     if img.endswith('.mat'):
         D_file = scipy.io.loadmat(img)
         for keys in D_file:
@@ -25,8 +25,8 @@ def detect(img,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360,Yeo_7):
         D_voxels=np.prod(D_img.shape[:-1])
         D = D_img.reshape(D_voxels,D_img.shaape[-1])
 ##---------------testing import + reshaping ------------------------###
-    if  msk.endswith('.nii'):
-        data1 = nib.load(msk)
+    if  mask.endswith('.nii'):
+        data1 = nib.load(mask)
         msk_img = np.array(data1.dataobj)
         #import msk
 
@@ -36,7 +36,7 @@ def detect(img,msk,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360,Yeo_7):
         msk = msk_img.reshape(m_voxels,msk_img.shape[-1])
 
     else:  #we have to remove this, only keeping this for testing
-        msk_file = h5py.File(msk)
+        msk_file = h5py.File(mask)
         msk_img = msk_file['M']
         msk_img = np.array(msk_img)
         msk_shape = msk_img.shape[:-1]
@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
     parser.add_argument("img", type=str,help='Provide the path to the 2D nifti file')
 
-    parser.add_argument("msk", type=str, help='provide the path to the mask of 2D nifti file')
+    parser.add_argument("mask", type=str, help='provide the path to the mask of 2D nifti file')
 
 
     parser.add_argument("wl", type=int,help='provide the length of window you would like to search for the template in')
@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
 
 
-    detect(args.img,args.msk,args.wl,args.nrp,args.cth,args.n_itr_th,args.mx_itr,args.pfs,args.nsubj,args.nrn,args.glassr_360,args.Yeo_7)
+    detect(args.img,args.mask,args.wl,args.nrp,args.cth,args.n_itr_th,args.mx_itr,args.pfs,args.nsubj,args.nrn,args.glassr_360,args.Yeo_7)
 
 
 
