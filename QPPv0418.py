@@ -383,26 +383,31 @@ def RDRG2Y7(bi):
         ylb1=glassr_file['YLB1']
         ylb=glassr_file['YLB']
 
-    g2y7=g2y7.flatten()
-    print(g2y7.shape)
+    g2y7=g2y7.tolist()
+    g2y7=[item for sublist in g2y7 for item in sublist]
     n=7
     ind=[]
     #print(g2y7.shape)
     nind=np.zeros(n+1)
     for i in range(n):
-        ind[i]=np.where(g2y7==i)
+        ind.append([p for p,x in enumerate(g2y7) if x==i])
         nind[i+1]=len(ind)
-    #for x in range(len(ind)):
-    #    ind[x].tolist()
-    #ind_flat = [item for sublist in ind for item in sublist]
-    print(ind)
+    ind = [item for sublist in ind for item in sublist]
 
+    #type of ind, change ind to a list of lists
+    # each element of each list, will now
+    # be int values
+#    for x in range(len(ind)):
+#        print(ind[x])
     nind=np.cumsum(nind)
+
+    nind=nind.astype(int)
+
     bo=np.zeros(bi.shape)
     for i in range(n):
-        bo[nind[i]+1:nind[i+1],:]=bi[ind,:]
+        bo[nind[i]+1:nind[i+1],:]=bi[ind[i],:]
     p4lb=np.zeros(n)
-    for i in range(size(nind)-1):
+    for i in range((nind.shape[0])-1):
         p4lb[i]=nind[i]+(nind[i+1]-nind[i])/2
     return nind,p4lb,ylb
 
