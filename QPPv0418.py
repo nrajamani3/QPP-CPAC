@@ -360,9 +360,10 @@ def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
         indu=np.nonzero(np.triu(np.ones(nX),1))
         indl=np.nonzero(np.tril(np.ones(nX),-1))
         FCF=np.empty(nX)
-        FC=np.correlate(RDRG2Y7(np.transpose(B)))
+
+        FC=np.corrcoef(RDRG2Y7(np.transpose(B)))
         FCF[indu] = FC[indu]
-        FC=np.correlate(RDG2Y7(np.transpose(Br)))
+        FC=np.corrcoef(RDG2Y7(np.transpose(Br)))
         FCF[indl]=FCP[indl]
         plt.imshow(x=FCP,cmap='jet',vmin=-0.6,vmax=0.8)
         plt.axis('equal')
