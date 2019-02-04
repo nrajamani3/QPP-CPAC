@@ -360,10 +360,11 @@ def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
         indu=np.nonzero(np.triu(np.ones(nX),1))
         indl=np.nonzero(np.tril(np.ones(nX),-1))
         FCF=np.empty(nX)
-
-        FC=np.corrcoef(RDRG2Y7(np.transpose(B)))
+        bo,nind,p4lb = RDRG2Y7(B)
+        FC=np.corrcoef(bo)
         FCF[indu] = FC[indu]
-        FC=np.corrcoef(RDG2Y7(np.transpose(Br)))
+        bo_r, nind_r, p4lb_r = RDRG2Y7(Br)
+        FC=np.corrcoef(bo_r)
         FCF[indl]=FCP[indl]
         plt.imshow(x=FCP,cmap='jet',vmin=-0.6,vmax=0.8)
         plt.axis('equal')
@@ -391,7 +392,7 @@ def RDRG2Y7(bi):
     #print(g2y7.shape)
     nind=np.zeros(n+1)
     for i in range(n):
-        ind.append([p for p,x in enumerate(g2y7) if x==i])
+        ind.append([p for p,x in enumerate(g2y7) if x==i+1])
         nind[i+1]=len(ind[i])
     #ind = [item for sublist in ind for item in sublist]
 
@@ -410,7 +411,7 @@ def RDRG2Y7(bi):
     p4lb=np.zeros(n)
     for i in range(n):
         p4lb[i]=(nind[i+1]+nind[i])/2
-    return nind,p4lb,ylb
+    return bo,nind,p4lb
 
 
 
