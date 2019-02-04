@@ -358,24 +358,31 @@ def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
     #plt.show()
     if glassr_360:
         indu=np.nonzero(np.triu(np.ones(nX),1))
+
         indl=np.nonzero(np.tril(np.ones(nX),-1))
-        FCF=np.empty(nX)
-        bo,nind,p4lb = RDRG2Y7(B)
+
+        FCF=np.zeros((nX,nX))
+        bo,nind,p4lb,ylb = RDRG2Y7(B)
         FC=np.corrcoef(bo)
+
         FCF[indu] = FC[indu]
-        bo_r, nind_r, p4lb_r = RDRG2Y7(Br)
+        bo_r, nind, p4lb,ylb = RDRG2Y7(Br)
         FC=np.corrcoef(bo_r)
-        FCF[indl]=FCP[indl]
-        plt.imshow(x=FCP,cmap='jet',vmin=-0.6,vmax=0.8)
+        FCF[indl]=FC[indl]
+        plt.imshow(X=FCF,cmap='jet',vmin=-0.6,vmax=0.8)
         plt.axis('equal')
         plt.colorbar
+        plt.show()
         for i in range(2,7):
             arr_1 = np.array([0,nX])
-            arr_2=np.array[nind[i],nind[i]]
+            arr_2=np.array([nind[i],nind[i]])
+            arr_1=arr_1.flatten()
+            arr_2=arr_2.flatten()
             plt.plot(arr_1,arr_2,'k')
-            plt.plot(aa_2,arr_1,'k')
-            plt.xticks(p4lb)
-            plt.ytics(p4lb)
+            plt.plot(arr_2,'k')
+            plt.xticks(ticks=p4lb,labels=ylb)
+            plt.ytics(ticks=p4lb,labels=ylb)
+            plt.show()
     return Br, C1r
 
 def RDRG2Y7(bi):
@@ -391,10 +398,14 @@ def RDRG2Y7(bi):
     ind=[]
     #print(g2y7.shape)
     nind=np.zeros(n+1)
+    #There are 7 regions in the brain, so we're just trying to mark those regions in the input image B
+    #and copy it into another image bo
+    #ind has the ordered list of each occurrence of the 1-7 indices
+    #nind is the number of times each n (1 to 7) occur in the
     for i in range(n):
         ind.append([p for p,x in enumerate(g2y7) if x==i+1])
         nind[i+1]=len(ind[i])
-    #ind = [item for sublist in ind for item in sublist]
+
 
     #type of ind, change ind to a list of lists
     # each element of each list, will now
@@ -411,7 +422,7 @@ def RDRG2Y7(bi):
     p4lb=np.zeros(n)
     for i in range(n):
         p4lb[i]=(nind[i+1]+nind[i])/2
-    return bo,nind,p4lb
+    return bo,nind,p4lb,ylb
 
 
 
