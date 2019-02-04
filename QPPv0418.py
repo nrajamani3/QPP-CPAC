@@ -392,8 +392,8 @@ def RDRG2Y7(bi):
     nind=np.zeros(n+1)
     for i in range(n):
         ind.append([p for p,x in enumerate(g2y7) if x==i])
-        nind[i+1]=len(ind)
-    ind = [item for sublist in ind for item in sublist]
+        nind[i+1]=len(ind[i])
+    #ind = [item for sublist in ind for item in sublist]
 
     #type of ind, change ind to a list of lists
     # each element of each list, will now
