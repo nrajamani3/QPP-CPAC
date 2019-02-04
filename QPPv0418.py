@@ -406,10 +406,10 @@ def RDRG2Y7(bi):
 
     bo=np.zeros(bi.shape)
     for i in range(n):
-        bo[nind[i]+1:nind[i+1],:]=bi[ind[i],:]
+        bo[nind[i]:nind[i+1],:]=bi[ind[i],:]
     p4lb=np.zeros(n)
-    for i in range((nind.shape[0])-1):
-        p4lb[i]=nind[i]+(nind[i+1]-nind[i])/2
+    for i in range(n):
+        p4lb[i]=(nind[i+1]+nind[i])/2
     return nind,p4lb,ylb
 
 
