@@ -362,17 +362,26 @@ def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
         indl=np.nonzero(np.tril(np.ones(nX),-1))
 
         FCF=np.zeros((nX,nX))
+
         bo,nind,p4lb,ylb = RDRG2Y7(B)
         FC=np.corrcoef(bo)
-
         FCF[indu] = FC[indu]
+        plt.imshow(X=FCF, cmap='jet', vmin=-0.6, vmax=0.8)
+        plt.gca().set_aspect('equal',adjustable='box')
+        plt.colorbar
+        plt.grid()
+        plt.show()
+
         bo_r, nind, p4lb,ylb = RDRG2Y7(Br)
         FC=np.corrcoef(bo_r)
         FCF[indl]=FC[indl]
+
         plt.imshow(X=FCF,cmap='jet',vmin=-0.6,vmax=0.8)
-        plt.axis('equal')
+        plt.gca().set_aspect('equal',adjustable='box')
         plt.colorbar
+        plt.grid()
         plt.show()
+
         for i in range(2,7):
             arr_1 = np.array([0,nX])
             arr_2=np.array([nind[i],nind[i]])
@@ -380,8 +389,8 @@ def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
             arr_2=arr_2.flatten()
             plt.plot(arr_1,arr_2,'k')
             plt.plot(arr_2,'k')
-            plt.xticks(ticks=p4lb,labels=ylb)
-            plt.ytics(ticks=p4lb,labels=ylb)
+            plt.xticks(p4lb)
+            plt.yticks(p4lb)
             plt.show()
     return Br, C1r
 
