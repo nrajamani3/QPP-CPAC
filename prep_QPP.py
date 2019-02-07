@@ -139,7 +139,9 @@ def gather_nifti_globs(pipeline_output_folder,resource_list,derivatives=None):
 
     return nifti_globs,search_dir
 
-
+def add(x,y):
+    a = x+y
+    return a
 
 def create_output_dict_list(nifti_globs,pipeline_folder,resource_list,search_dir,derivatives=None):
     import os
@@ -213,9 +215,11 @@ def create_output_df_dict(output_dict_list,inclusion_list):
     for unique_resource_id in output_dict_list.keys():
         ##This dataframe will give you what is in the C-PAC output directory for individual level analysis outputs##
         new_df = pd.DataFrame(output_dict_list[unique_resource_id])
+        print(new_df)
         if inclusion_list:
             #this is for participants only, not scans/sessions/etc
             new_df=new_df[new_df.participant_id.isin(inclusion_list)]
+
         if new_df.empty:
                 print("No outputs found for {0} the participants "\
                       "listed in the group manalysis participant list you "\
@@ -267,32 +271,63 @@ def prep_inputs(group_config_file):
     if not group_model.participant_list:
         inclusion_list = grab_pipeline_dir_subs(pipeline_folder)
     elif '.' in group_model.participant_list:
+
         if not os.path.isfile(group_model.participant_list):
+
             raise Exception('\n[!] C-PAC says: Your participant '
                             'inclusion list is not a valid file!\n\n'
                             'File path: {0}'
                             '\n'.format(group_model.participant_list))
         else:
-            inclusion_list = load_text_file(group_model.participant_list,
-                                            "group-level analysis participant "
-                                            "list")
+            inclusion_list = load_text_file(group_model.participant_list,"group-level analysis participant list")
+
     else:
         inclusion_list = grab_pipeline_dir_subs(pipeline_dir)
-    resource_list = ['functional_to_nuisance_regressors']
+    resource_list = ['alff']
     output_df_dict=gather_outputs(pipeline_folder,resource_list,inclusion_list)
+    analysis_dict = {}
+    for unique_resource in output_df_dict.keys():
+        resource_id = unique_resource[0]
+    strat_info=unique_resource[1]
+    output_df=output_df_dict[unique_resource]
+    #We're going to reduce the size of the output df based on nuisance strat and the
+    #participant list that actually is included.
+    if not group_model.participant_list:
+        inclusion_list = grab_pipeline_dir_subs(pipeline_dir)
+        output_df = output_df[output_df["participant_id"].isin(inclusion_list)]
+    elif os.path.isfile(group_model.participant_list):
+        inclusion_list = load_text_file(group_model.participant_list,
+                                        "group-level analysis "
+                                        "participant list")
+        output_df = output_df[output_df["participant_id"].isin(inclusion_list)]
+    else:
+        raise Exception('\nCannot read group-level analysis participant ' \
+                        'list.\n')
+    # We're then going to reduce the Output directory to contain only those scans and or the sessions which are expressed by the user.
+    # If the user answers all to the option, then we're obviously not going to do any repeated measures.
 
-#    repeated_sessions = False
-#    repeated_Series = False
-#    if len(group_config_file.qpp_sess_list) > 0:
-#            repeated_sessions = True
-#    if len(group_config_file.qpp_ser_list) > 0:
-#            repeated_series = True
-#    if repeated_sessions:
-#            new_output_df = balance_df(output_df,qpp_sess_list)
+    repeated_sessions = False
+    repeated_scan = False
+    repeated_measures=False
+    
+    if len(group_config_file.qpp_sess_list) > 0:
+        repeated_sessions = True
+    if len(group_config_file.qpp_scan_list) > 0:
+        repeated_scans = True
+    if repeated_sessions or repeated_series:
+        repeated_measures=True
+
+    if repeated_scans:
+        #In this case, you're basically going to curse at yourself for getting it wrong
+        #But if a user has multiple scans and want to include all scans in one model, you have
+        #to group by sessions
+        series = "repeated_measures_multiple_series"
+        if 'session' in output_df
 
 
-#def balance_df(output_df,qpp_sess_list):
-#    import pandas as pd
+
+def balance_df(output_df,qpp_sess_list):
+    import pandas as pd
     """""Take in the selected session names, and match them to the unique participant-session IDs
     appropriately
     Sample input:
