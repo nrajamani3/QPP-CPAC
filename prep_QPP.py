@@ -349,6 +349,8 @@ def prep_inputs(group_config_file):
                 join_colums.append("Session")
                 # balance the DF
                 new_output_df, dropped_parts = balance_df(new_output_df, group_model.qpp_sessions_list, scan_list=None)
+                merge_outfile = group_model.qpp_out_path
+                merge_file = create_merge_file(new_output_df["Filepath"].tolist(), merge_outfile)
             if grp_by_sessions:
                 #multilple scans
                 #setting up the output_df for grouping by sessions
@@ -363,9 +365,13 @@ def prep_inputs(group_config_file):
                 sessions_list = None
                 scan_list = group_model.qpp_scan_list
                 new_output_df, dropped_parts = balance_df(new_output_df,sessions_list,scan_list)
+                merge_outfile = group_model.qpp_out_path
+                merge_file = create_merge_file(new_output_df["Filepath"].tolist(), merge_outfile)
 
             if grp_by_both:
                 new_output_df = new_output_df(new_output_df,group_model.qpp_sessions_list,group_model.qpp_scan_list)
+                merge_outfile = group_model.qpp_out_path
+                merge_file = create_merge_file(new_output_df["Filepath"].tolist(), merge_outfile)
         else:
             for scan_df_tuple in output_df.groupby("Scans"):
                 scans = scan_df_tuple[0]
@@ -380,14 +386,19 @@ def prep_inputs(group_config_file):
                 else:
                     session='ses-1'
                     new_output_df = pd.merge(new_output_df,scan_df,how="inner",on=["participant_id"])
-    if len(new_output_df) == 0:
-        err = '\n\n[!]C-PAC says:Could not find match betterrn the ' \
+                    merge_outfile = group_model.qpp_out_path
+                    merge_file = create_merge_file(new_output_df["Filepath"].tolist(), merge_outfile)
+        if len(new_output_df) == 0:
+            err = '\n\n[!]C-PAC says:Could not find match betterrn the ' \
               'particoants in your pipeline output directory that were ' \
               'included in your analysis, and the particpants in the phenotype ' \
                     'phenotype file provided.\n\n'
-        raise Exception(err)
+            raise Exception(err)
+        #merge all the files in the filepath, one for each nuisance startergy
+        merge_outfile = group_model.qpp_out_path
+        merge_file = create_merge_file(new_output_df["Filepath"].tolist(),merge_outfile)
 
-    return new_output_df
+    return merge_file
 
 
 def op_grp_by_sessions(output_df,scan_list,grp_by_scans=False):
@@ -539,9 +550,45 @@ def balance_df(output_df,sessions_list,scan_list):
             dropped_parts.append(part_ID)
     return output_df, dropped_parts
 
+def create_merge_file(list_of_output_files, merged_outfile):
+    import subprocess
+
+    merge_string = ["fslmerge", "-t", merged_outfile]
+    merge_string = merge_string + list_of_output_files
+
+    try:
+        retcode = subprocess.check_output(merge_string)
+    except Exception as e:
+        err = "\n\n[!] Something went wrong with FSL's fslmerge during the " \
+              "creation of the 4D merged file for group analysis.\n\n" \
+              "Attempted to create file: %s\n\nLength of list of files to " \
+              "merge: %d\n\nError details: %s\n\n" \
+              % (merged_outfile, len(list_of_output_files), e)
+        raise Exception(err)
+
+    return merged_outfile
+
+def create_merge_mask(merged_file, mask_outfile):
+
+    import subprocess
+
+    mask_string = ["fslmaths", merged_file, "-abs", "-Tmin", "-bin",
+                   mask_outfile]
+
+    try:
+        retcode = subprocess.check_output(mask_string)
+    except Exception as e:
+        err = "\n\n[!] Something went wrong with FSL's fslmaths during the " \
+              "creation of the merged copefile group mask.\n\nAttempted to " \
+              "create file: %s\n\nMerged file: %s\n\nError details: %s\n\n" \
+              % (mask_outfile, merged_file, e)
+        raise Exception(err)
+
+    return mask_outfile
+
 def main():
     group_config_file = '/home/nrajamani/grp/tests_v1/fsl-feat_config_adhd200_test7.yml'
-    prep_inputs(group_config_file)
+    merge_file = prep_inputs(group_config_file)
 
 
 main()
