@@ -63,7 +63,7 @@ def load_text_file(filepath, label="file"):
 
     # get rid of those \n's that love to show up everywhere
     lines_list = [i.rstrip("\n") for i in lines_list]
-    print(lines_list)
+
     return lines_list
 
 
@@ -289,7 +289,7 @@ def prep_inputs(group_config_file):
         inclusion_list = grab_pipeline_dir_subs(pipeline_dir)
     resource_list = ['alff']
     output_df_dict=gather_outputs(pipeline_folder,resource_list,inclusion_list)
-    
+
     for unique_resource in output_df_dict.keys():
 
 
@@ -297,19 +297,21 @@ def prep_inputs(group_config_file):
 
         strat_info=unique_resource[1]
         output_df=output_df_dict[unique_resource]
+
         #We're going to reduce the size of the output df based on nuisance strat and the
         #participant list that actually is included.
         if not group_model.participant_list:
             inclusion_list = grab_pipeline_dir_subs(pipeline_dir)
-            output_df = output_df[output_df["participant_id"].isin(inclusion_list)]
+            output_df = output_df[output_df["participant_session_id"].isin(inclusion_list)]
         elif os.path.isfile(group_model.participant_list):
             inclusion_list = load_text_file(group_model.participant_list,
                                         "group-level analysis "
                                         "participant list")
-            output_df = output_df[output_df["participant_id"].isin(inclusion_list)]
+            output_df = output_df[output_df["participant_session_id"].isin(inclusion_list)]
         else:
             raise Exception('\nCannot read group-level analysis participant ' \
                         'list.\n')
+
 
         # We're then going to reduce the Output directory to contain only those scans and or the sessions which are expressed by the user.
         # If the user answers all to the option, then we're obviously not going to do any repeated measures.
@@ -325,32 +327,160 @@ def prep_inputs(group_config_file):
         if repeated_sessions or repeated_scans:
             repeated_measures=True
 
-        print(repeated_scans)
+
         if repeated_measures:
 
             if repeated_sessions:
 
                 #setting up the output_df for grouping by series
                 #This will create new rows for each series
-                new_output_df = op_to_repeated_measures(output_df,group_model.sessions_list)
+                new_output_df = op_ser_repeated_measures(output_df,group_model.qpp_sess_list,repeated_sessions)
             if repeated_scans:
                 #setting up the output_df for grouping by sessions
-                new_output_df = op_to_repeated_measures(output_df,group_model.scans_list)
+                new_output_df = op_sess_repeated_measures(output_df,group_model.qpp_scan_list)
             if len(new_output_df) == 0:
-                err="\n\n[!] There is a mis-match between the "\
-                      "participant IDs in the output directory/particip" \
-                      "ant list and the phenotype file.\n\n"
+                err="\n\n[!]The output data frame has not been compiled correctly. Please" \
+                    "recheck the participants in the participant inclusion list and the" \
+                    "pipeline output directory to troubleshoot.\n\n"
                 raise Exception(err)
             if 'session' in output_df:
-
                 #This will happen if we have multiple scans
                 for ses_df_tuple in output_df.groupby('Sessions'):
                     session='ses-{0}'.format(ses_df_tuple[0])
                     ses_df = ses_df_tuple[1]
                     fin_output_df=ses_df
-                    print(fin_output_df)
+
                    #we don't need an analysis dictionary, so we just want to
                    #change output df
+
+
+def op_ser_repeated_measures(output_df,series_list,repeated_session=False):
+    import pandas as pd
+
+    #check whether there is an extra sessions column in
+    num_partic_cols = 0
+    for col_names in output_df.columns:
+        if "participant_" in col_names:
+            num_partic_cols += 1
+    if num_partic_cols > 1 and "Series" in output_df.columns:
+        for part_id in output_df["participant_id"]:
+            if "participant_{0}".format(part_id) in output_df.columns:
+                continue
+            break
+        else:
+            # if it's already set up properly, then just send the output_df
+            # back and bypass all the machinery below
+            return output_df
+
+    new_rows = []
+    for series in series_list:
+        sub_output_df = output_df.copy()
+        sub_output_df["Series"] = series
+        new_rows.append(sub_output_df)
+    output_df = pd.concat(new_rows)
+
+    if not repeated_sessions:
+        # participant IDs new columns
+        participant_id_cols = {}
+        i = 0
+
+        for participant_unique_id in output_df["participant_id"]:
+
+            part_col = [0] * len(output_df["participant_id"])
+            header_title = "participant_%s" % participant_unique_id
+
+            if header_title not in participant_id_cols.keys():
+                part_col[i] = 1
+                participant_id_cols[header_title] = part_col
+            else:
+                participant_id_cols[header_title][i] = 1
+
+            i += 1
+
+        for new_col in participant_id_cols.keys():
+            output_df[new_col] = participant_id_cols[new_col]
+
+    new_output_df = output_df.astype('object')
+
+    return new_output_df
+
+def op_sess_repeated_measures(output_df,sessions_list):
+    import pandas as pd
+
+    num_partic_cols = 0
+    for col_names in output_df.columns:
+        print(col_names)
+        if "participant_" in col_names:
+            num_partic_cols += 1
+
+
+        if num_partic_cols > 1 and ("Sessions" in output_df.columns or "Sessions_column_one" in pheno_df.columns):
+            for part_id in output_df["participant_id"]:
+
+                if "participant_{0}".format(part_id) in output_df.columns:
+                    continue
+                break
+            else:
+                # if it's already set up properly, then just send the pheno_df
+                # back and bypass all the machinery below
+                return output_df
+        else:
+            # if not an FSL model preset, continue as normal
+            new_rows = []
+            another_new_row = []
+
+            # grab the ordered sublist before we double the rows
+            sublist = output_df['participant_id']
+
+            for session in sessions_list:
+                sub_op_df = output_df.copy()
+                sub_op_df["Sessions"] = session
+                sub_op_df["participant_session_id"] = output_df.participant_id + '_ses-%s' % session
+                new_rows.append(sub_op_df)
+                another_new_row.append(sub_op_df)
+                op_df = pd.concat(new_rows)
+                op_df = pd.concat(another_new_row)
+
+        sessions_col = []
+        part_ids_col = []
+
+        # participant IDs new columns
+        participant_id_cols = {}
+        i = 0
+
+        for participant_unique_id in op_df["participant_session_id"]:
+            part_col = [0] * len(op_df["participant_session_id"])
+
+            for session in sessions_list:
+
+                if session in participant_unique_id.split("_")[1]:
+                    # print(participant_unique_id)# generate/update sessions categorical column
+                    part_id = participant_unique_id.split("_")[0]
+
+                    part_ids_col.append(str(part_id))
+                    sessions_col.append(str(session))
+
+                    header_title = "participant_%s" % part_id
+
+                    # generate/update participant ID column (1's or 0's)
+                    if header_title not in participant_id_cols.keys():
+                        part_col[i] = 1
+                        participant_id_cols[header_title] = part_col
+                    else:
+                        participant_id_cols[header_title][i] = 1
+            i += 1
+
+        output_df["Sessions"] = sessions_col
+        output_df["participant"] = part_ids_col
+
+        # add new participant ID columns
+        for sub_id in sublist:
+            new_col = 'participant_{0}'.format(sub_id)
+            output_df[new_col] = participant_id_cols[new_col]
+
+        output_df = output_df.astype('object')
+
+        return output_df
 
 
 def balance_df(output_df,qpp_sess_list):
