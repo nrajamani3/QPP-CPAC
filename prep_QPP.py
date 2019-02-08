@@ -409,78 +409,78 @@ def op_sess_repeated_measures(output_df,sessions_list):
 
     num_partic_cols = 0
     for col_names in output_df.columns:
-        print(col_names)
-        if "participant_" in col_names:
+
+        if "participant_" in output_df.columns:
             num_partic_cols += 1
 
 
-        if num_partic_cols > 1 and ("Sessions" in output_df.columns or "Sessions_column_one" in pheno_df.columns):
-            for part_id in output_df["participant_id"]:
+    if num_partic_cols > 1 and ("Sessions" in output_df.columns or "Sessions_column_one" in pheno_df.columns):
+        for part_id in output_df["participant_id"]:
 
-                if "participant_{0}".format(part_id) in output_df.columns:
-                    continue
-                break
-            else:
-                # if it's already set up properly, then just send the pheno_df
-                # back and bypass all the machinery below
-                return output_df
+            if "participant_{0}".format(part_id) in output_df.columns:
+                continue
+            break
         else:
-            # if not an FSL model preset, continue as normal
-            new_rows = []
-            another_new_row = []
+            # if it's already set up properly, then just send the pheno_df
+            # back and bypass all the machinery below
+            return output_df
+    else:
+        # if not an FSL model preset, continue as normal
+        new_rows = []
+        another_new_row = []
 
             # grab the ordered sublist before we double the rows
-            sublist = output_df['participant_id']
+        sublist = output_df['participant_id']
 
-            for session in sessions_list:
-                sub_op_df = output_df.copy()
-                sub_op_df["Sessions"] = session
-                sub_op_df["participant_session_id"] = output_df.participant_id + '_ses-%s' % session
-                new_rows.append(sub_op_df)
-                another_new_row.append(sub_op_df)
-                op_df = pd.concat(new_rows)
-                op_df = pd.concat(another_new_row)
+        for session in sessions_list:
+            sub_op_df = output_df.copy()
+            sub_op_df["Sessions"] = session
+            sub_op_df["participant_session_id"] = output_df.participant_id + '_ses-%s' % session
+            new_rows.append(sub_op_df)
+            another_new_row.append(sub_op_df)
+            op_df = pd.concat(new_rows)
+            op_df = pd.concat(another_new_row)
 
-        sessions_col = []
-        part_ids_col = []
+    sessions_col = []
+    part_ids_col = []
 
-        # participant IDs new columns
-        participant_id_cols = {}
-        i = 0
+    # participant IDs new columns
+    participant_id_cols = {}
+    i = 0
 
-        for participant_unique_id in op_df["participant_session_id"]:
-            part_col = [0] * len(op_df["participant_session_id"])
+    for participant_unique_id in op_df["participant_session_id"]:
+        part_col = [0] * len(op_df["participant_session_id"])
 
-            for session in sessions_list:
+        for session in sessions_list:
 
-                if session in participant_unique_id.split("_")[1]:
-                    # print(participant_unique_id)# generate/update sessions categorical column
-                    part_id = participant_unique_id.split("_")[0]
+            if session in participant_unique_id.split("_")[1]:
+                # print(participant_unique_id)# generate/update sessions categorical column
+                part_id = participant_unique_id.split("_")[0]
 
-                    part_ids_col.append(str(part_id))
-                    sessions_col.append(str(session))
+                part_ids_col.append(str(part_id))
+                sessions_col.append(str(session))
 
-                    header_title = "participant_%s" % part_id
+                header_title = "participant_%s" % part_id
 
-                    # generate/update participant ID column (1's or 0's)
-                    if header_title not in participant_id_cols.keys():
-                        part_col[i] = 1
-                        participant_id_cols[header_title] = part_col
-                    else:
-                        participant_id_cols[header_title][i] = 1
-            i += 1
+                # generate/update participant ID column (1's or 0's)
+                if header_title not in participant_id_cols.keys():
+                    part_col[i] = 1
+                    participant_id_cols[header_title] = part_col
+                else:
+                    participant_id_cols[header_title][i] = 1
+        i += 1
 
-        output_df["Sessions"] = sessions_col
-        output_df["participant"] = part_ids_col
+    output_df["Sessions"] = sessions_col
+    output_df["participant"] = part_ids_col
 
-        # add new participant ID columns
-        for sub_id in sublist:
-            new_col = 'participant_{0}'.format(sub_id)
-            output_df[new_col] = participant_id_cols[new_col]
+    # add new participant ID columns
+    for sub_id in sublist:
+        new_col = 'participant_{0}'.format(sub_id)
+        output_df[new_col] = participant_id_cols[new_col]
 
-        output_df = output_df.astype('object')
+    output_df = output_df.astype('object')
 
-        return output_df
+    return output_df
 
 
 def balance_df(output_df,qpp_sess_list):
