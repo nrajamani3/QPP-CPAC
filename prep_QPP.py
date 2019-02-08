@@ -374,9 +374,9 @@ def op_ser_repeated_measures(output_df,series_list,repeated_session=False):
 
     new_rows = []
     for series in series_list:
-        sub_output_df = output_df.copy()
-        sub_output_df["Series"] = series
-        new_rows.append(sub_output_df)
+        sub_op_df = output_df.copy()
+        sub_op_df["Series"] = series
+        new_rows.append(sub_op_df)
     output_df = pd.concat(new_rows)
 
     if not repeated_sessions:
