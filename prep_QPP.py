@@ -1,5 +1,5 @@
 import fnmatch
-import pandas
+import numpy as np
 
 
 def load_config_yml(config_file, individual=False):
@@ -63,7 +63,7 @@ def load_text_file(filepath, label="file"):
 
     # get rid of those \n's that love to show up everywhere
     lines_list = [i.rstrip("\n") for i in lines_list]
-
+    print(lines_list)
     return lines_list
 
 
@@ -94,8 +94,8 @@ def gather_nifti_globs(pipeline_output_folder,resource_list,derivatives=None):
                 keys['Values'] == 'z-stat']['Resource'])
 
     pipeline_output_folder = pipeline_output_folder.rstrip("/")
-    print "\n\nGathering the output file paths from %s..." \
-    % pipeline_output_folder
+    #print "\n\nGathering the output file paths from %s..." \
+    #% pipeline_output_folder
 
     search_dir = []
     for derivative_name in derivatives:
@@ -183,6 +183,7 @@ def create_output_dict_list(nifti_globs,pipeline_folder,resource_list,search_dir
             strat_info = "_".join(filepath_pieces[3:])[:-len(ext)]
             unique_resource_id=(resource_id,strat_info)
             if unique_resource_id not in output_dict_list.keys():
+
                 output_dict_list[unique_resource_id] = []
 
             unique_id = filepath_pieces[0]
@@ -213,12 +214,14 @@ def create_output_df_dict(output_dict_list,inclusion_list):
 
 
     for unique_resource_id in output_dict_list.keys():
+
         ##This dataframe will give you what is in the C-PAC output directory for individual level analysis outputs##
         new_df = pd.DataFrame(output_dict_list[unique_resource_id])
-        print(new_df)
+        col_names = new_df.columns.tolist()
+
         if inclusion_list:
             #this is for participants only, not scans/sessions/etc
-            new_df=new_df[new_df.participant_id.isin(inclusion_list)]
+            new_df=new_df[new_df.participant_session_id.isin(inclusion_list)]
 
         if new_df.empty:
                 print("No outputs found for {0} the participants "\
@@ -226,6 +229,7 @@ def create_output_df_dict(output_dict_list,inclusion_list):
                       "used. Skipping generating model for this "\
                       "output.".format(unique_resource_id))
                 continue
+
         if unique_resource_id not in output_df_dict.keys():
                 output_df_dict[unique_resource_id] = new_df
 
@@ -285,45 +289,68 @@ def prep_inputs(group_config_file):
         inclusion_list = grab_pipeline_dir_subs(pipeline_dir)
     resource_list = ['alff']
     output_df_dict=gather_outputs(pipeline_folder,resource_list,inclusion_list)
-    analysis_dict = {}
+    
     for unique_resource in output_df_dict.keys():
+
+
         resource_id = unique_resource[0]
-    strat_info=unique_resource[1]
-    output_df=output_df_dict[unique_resource]
-    #We're going to reduce the size of the output df based on nuisance strat and the
-    #participant list that actually is included.
-    if not group_model.participant_list:
-        inclusion_list = grab_pipeline_dir_subs(pipeline_dir)
-        output_df = output_df[output_df["participant_id"].isin(inclusion_list)]
-    elif os.path.isfile(group_model.participant_list):
-        inclusion_list = load_text_file(group_model.participant_list,
+
+        strat_info=unique_resource[1]
+        output_df=output_df_dict[unique_resource]
+        #We're going to reduce the size of the output df based on nuisance strat and the
+        #participant list that actually is included.
+        if not group_model.participant_list:
+            inclusion_list = grab_pipeline_dir_subs(pipeline_dir)
+            output_df = output_df[output_df["participant_id"].isin(inclusion_list)]
+        elif os.path.isfile(group_model.participant_list):
+            inclusion_list = load_text_file(group_model.participant_list,
                                         "group-level analysis "
                                         "participant list")
-        output_df = output_df[output_df["participant_id"].isin(inclusion_list)]
-    else:
-        raise Exception('\nCannot read group-level analysis participant ' \
+            output_df = output_df[output_df["participant_id"].isin(inclusion_list)]
+        else:
+            raise Exception('\nCannot read group-level analysis participant ' \
                         'list.\n')
-    # We're then going to reduce the Output directory to contain only those scans and or the sessions which are expressed by the user.
-    # If the user answers all to the option, then we're obviously not going to do any repeated measures.
 
-    repeated_sessions = False
-    repeated_scan = False
-    repeated_measures=False
-    
-    if len(group_config_file.qpp_sess_list) > 0:
-        repeated_sessions = True
-    if len(group_config_file.qpp_scan_list) > 0:
-        repeated_scans = True
-    if repeated_sessions or repeated_series:
-        repeated_measures=True
+        # We're then going to reduce the Output directory to contain only those scans and or the sessions which are expressed by the user.
+        # If the user answers all to the option, then we're obviously not going to do any repeated measures.
 
-    if repeated_scans:
-        #In this case, you're basically going to curse at yourself for getting it wrong
-        #But if a user has multiple scans and want to include all scans in one model, you have
-        #to group by sessions
-        series = "repeated_measures_multiple_series"
-        if 'session' in output_df
+        repeated_sessions = False
+        repeated_scan = False
+        repeated_measures=False
 
+        if len(group_model.qpp_sess_list) > 0:
+            repeated_sessions = True
+        if len(group_model.qpp_scan_list) > 0:
+            repeated_scans = True
+        if repeated_sessions or repeated_scans:
+            repeated_measures=True
+
+        print(repeated_scans)
+        if repeated_measures:
+
+            if repeated_sessions:
+
+                #setting up the output_df for grouping by series
+                #This will create new rows for each series
+                new_output_df = op_to_repeated_measures(output_df,group_model.sessions_list)
+            if repeated_scans:
+                #setting up the output_df for grouping by sessions
+                new_output_df = op_to_repeated_measures(output_df,group_model.scans_list)
+            if len(new_output_df) == 0:
+                err="\n\n[!] There is a mis-match between the "\
+                      "participant IDs in the output directory/particip" \
+                      "ant list and the phenotype file.\n\n"
+                raise Exception(err)
+            if 'session' in output_df:
+
+                #This will happen if we have multiple scans
+                for ses_df_tuple in output_df.groupby('Sessions'):
+                    session='ses-{0}'.format(ses_df_tuple[0])
+                    ses_df = ses_df_tuple[1]
+                    fin_output_df=ses_df
+                    print(fin_output_df)
+                   #we don't need an analysis dictionary, so we just want to
+                   #change output df
 
 
 def balance_df(output_df,qpp_sess_list):
@@ -357,8 +384,8 @@ def balance_df(output_df,qpp_sess_list):
 #    return output_df
 def main():
     group_config_file = '/home/nrajamani/grp/tests_v1/fsl-feat_config_adhd200_test7.yml'
-    output_df_dict= prep_inputs(group_config_file)
-    print(output_df_dict)
+    prep_inputs(group_config_file)
+
 
 main()
 
