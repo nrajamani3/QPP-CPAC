@@ -179,7 +179,7 @@ def create_output_dict_list(nifti_globs,pipeline_folder,resource_list,search_dir
             if resource_id not in search_dir:
                 continue
 
-            series_id_string = filepath_pieces[2]
+            scan_id_string = filepath_pieces[2]
             strat_info = "_".join(filepath_pieces[3:])[:-len(ext)]
             unique_resource_id=(resource_id,strat_info)
             if unique_resource_id not in output_dict_list.keys():
@@ -188,18 +188,18 @@ def create_output_dict_list(nifti_globs,pipeline_folder,resource_list,search_dir
 
             unique_id = filepath_pieces[0]
 
-            series_id = series_id_string.replace("_scan_", "")
-            series_id = series_id.replace("_rest", "")
+            scan_id = scan_id_string.replace("_scan_", "")
+            scan_id = scan_id.replace("_rest", "")
 
             new_row_dict = {}
             new_row_dict["participant_session_id"] = unique_id
             new_row_dict["participant_id"], new_row_dict["Sessions"] = \
                 unique_id.split('_')
 
-            new_row_dict["Series"] = series_id
+            new_row_dict["Scan"] = scan_id
             new_row_dict["Filepath"] = filepath
 
-            print('{0} - {1} - {2}'.format(unique_id, series_id,
+            print('{0} - {1} - {2}'.format(unique_id, scan_id,
                                            resource_id))
             output_dict_list[unique_resource_id].append(new_row_dict)
 
@@ -311,50 +311,86 @@ def prep_inputs(group_config_file):
         else:
             raise Exception('\nCannot read group-level analysis participant ' \
                         'list.\n')
-
+        if len(output_df) == 0:
+            err = "\n\n[!]The output data frame has not been compiled correctly. Please" \
+                  "recheck the participants in the participant inclusion list and the" \
+                  "pipeline output directory to troubleshoot.\n\n"
+            raise Exception(err)
+        join_columns = ["participant_id"]
 
         # We're then going to reduce the Output directory to contain only those scans and or the sessions which are expressed by the user.
         # If the user answers all to the option, then we're obviously not going to do any repeated measures.
 
-        repeated_sessions = False
-        repeated_scan = False
+        grp_by_sessions = False
+        grp_by_scans = False
+        grp_by_both = False
         repeated_measures=False
-
+        #multiple sessions, so you're going group by scans
         if len(group_model.qpp_sess_list) > 0:
-            repeated_sessions = True
+            grp_by_scans = True
+        #Multiple scans so you're going to group by sessions
         if len(group_model.qpp_scan_list) > 0:
-            repeated_scans = True
-        if repeated_sessions or repeated_scans:
+            grp_by_sessions = True
+        if grp_by_scans or grp_by_sessions:
             repeated_measures=True
+        if grp_by_scans and grp_by_sessions:
+            grp_by_both=True
 
-
+        #PSA #both multiple sessions and scans, youre going to do nothing
+             #if neither, the output directory will not have any level of grouping, it will be ses1_scan1 --> nuisance strat, etc
         if repeated_measures:
-
-            if repeated_sessions:
-
-                #setting up the output_df for grouping by series
-                #This will create new rows for each series
-                new_output_df = op_ser_repeated_measures(output_df,group_model.qpp_sess_list,repeated_sessions)
-            if repeated_scans:
+            if grp_by_scans:
+                #setting up the output_df for grouping by scans
+                #output directory will be scan_1
+                #                         scan_2
+                new_output_df = op_grp_by_scans(output_df,group_model.qpp_sess_list)
+                # drop all the sessions that are not in the sessions list
+                new_output_df = new_output_df["Session"].isin(group_model.qpp_sessions_list)
+                join_colums.append("Session")
+                # balance the DF
+                new_output_df, dropped_parts = balance_df(new_output_df, group_model.qpp_sessions_list, scan_list=None)
+            if grp_by_sessions:
+                #multilple scans
                 #setting up the output_df for grouping by sessions
-                new_output_df = op_sess_repeated_measures(output_df,group_model.qpp_scan_list)
-            if len(new_output_df) == 0:
-                err="\n\n[!]The output data frame has not been compiled correctly. Please" \
-                    "recheck the participants in the participant inclusion list and the" \
-                    "pipeline output directory to troubleshoot.\n\n"
-                raise Exception(err)
-            if 'session' in output_df:
-                #This will happen if we have multiple scans
-                for ses_df_tuple in output_df.groupby('Sessions'):
-                    session='ses-{0}'.format(ses_df_tuple[0])
-                    ses_df = ses_df_tuple[1]
-                    fin_output_df=ses_df
+                new_output_df = op_grp_by_sessions(output_df,group_model.qpp_scan_list,grp_by_scans)
 
-                   #we don't need an analysis dictionary, so we just want to
-                   #change output df
+                # drop all the scans that are not in the scan list
+                #new_output_df = new_output_df["Scan"].isin(group_model.qpp_scan_list)
+                #print(new_output_df)
+                join_columns.append("Scan")
+
+                # balance the DF
+                sessions_list = None
+                scan_list = group_model.qpp_scan_list
+                new_output_df, dropped_parts = balance_df(new_output_df,sessions_list,scan_list)
+
+            if grp_by_both:
+                new_output_df = new_output_df(new_output_df,group_model.qpp_sessions_list,group_model.qpp_scan_list)
+        else:
+            for scan_df_tuple in output_df.groupby("Scans"):
+                scans = scan_df_tuple[0]
+                scan_df=scan_df_tuple[1]
+                #if you have multiple sessions
+                if 'Sessions' in scan_df:
+                    for ses_df_tuple in scan_df.groupby('Sessions'):
+                        session = 'ses-{0}'.format(ses_df_tuple[0])
+                        ses_df = ses_df_tuple[1]
+                        new_output_df=pd.merge(scan_df,ses_df,how='inner',on=['participant_id'])
+                #if you don't
+                else:
+                    session='ses-1'
+                    new_output_df = pd.merge(new_output_df,scan_df,how="inner",on=["participant_id"])
+    if len(new_output_df) == 0:
+        err = '\n\n[!]C-PAC says:Could not find match betterrn the ' \
+              'particoants in your pipeline output directory that were ' \
+              'included in your analysis, and the particpants in the phenotype ' \
+                    'phenotype file provided.\n\n'
+        raise Exception(err)
+
+    return new_output_df
 
 
-def op_ser_repeated_measures(output_df,series_list,repeated_session=False):
+def op_grp_by_sessions(output_df,scan_list,grp_by_scans=False):
     import pandas as pd
 
     #check whether there is an extra sessions column in
@@ -362,7 +398,7 @@ def op_ser_repeated_measures(output_df,series_list,repeated_session=False):
     for col_names in output_df.columns:
         if "participant_" in col_names:
             num_partic_cols += 1
-    if num_partic_cols > 1 and "Series" in output_df.columns:
+    if num_partic_cols > 1 and "Scan" in output_df.columns:
         for part_id in output_df["participant_id"]:
             if "participant_{0}".format(part_id) in output_df.columns:
                 continue
@@ -373,13 +409,13 @@ def op_ser_repeated_measures(output_df,series_list,repeated_session=False):
             return output_df
 
     new_rows = []
-    for series in series_list:
+    for scan in scan_list:
         sub_op_df = output_df.copy()
-        sub_op_df["Series"] = series
+        sub_op_df["Scan"] = scan
         new_rows.append(sub_op_df)
     output_df = pd.concat(new_rows)
 
-    if not repeated_sessions:
+    if not grp_by_scans:
         # participant IDs new columns
         participant_id_cols = {}
         i = 0
@@ -404,7 +440,7 @@ def op_ser_repeated_measures(output_df,series_list,repeated_session=False):
 
     return new_output_df
 
-def op_sess_repeated_measures(output_df,sessions_list):
+def op_grp_by_scans(output_df,sessions_list):
     import pandas as pd
 
     num_partic_cols = 0
@@ -483,35 +519,24 @@ def op_sess_repeated_measures(output_df,sessions_list):
     return output_df
 
 
-def balance_df(output_df,qpp_sess_list):
+def balance_df(output_df,sessions_list,scan_list):
     import pandas as pd
-    """""Take in the selected session names, and match them to the unique participant-session IDs
-    appropriately
-    Sample input:
-     output_df
-       sub01
-       sub02
-     session_list
-       [ses01,ses02]
-    Expected output:
-     output_df         sessions  participant_sub-1  participant_sub02  participant_sub03
-       sub01           ses01                     1                  0                  0 
-       sub02           ses01                     0                  1                  0
-       sub01           ses02                     1                  0                  0
-       sub02           ses02                     0                  1                  0
-    """""
-#    num_partic_cols = 0
-#    for col_names in output_df.columns:
-#        if "participant_" in col_names:
-#            num_partic_cols += 1
-#    if num_partic_cols > 1 and ("Sessions" in output_df.columns or "Sessions_column_one" in output_df.columns):
-#        for part_id in pheno_df["participant_id"]:
-#            if "participant_{0}".format(part_id) in output_df.columns:
-#                continue
-#            break
-#        else:
-#            return output_df
-#    return output_df
+    from collections import Counter
+
+    part_ID_count = Counter(output_df["participant_id"])
+
+    if scan_list and sessions_list:
+        sessions_x_scans= len(sessions_list)*len(scan_list)
+    else:
+        sessions_x_series = len(sessions_list)
+    dropped_parts = []
+    for part_ID in part_ID_count.keys():
+        if part_ID_count[part_ID] != sessions_x_scans:
+            output_df=putput_df[output_df.participant_id != part_ID]
+            del output_df["participant_%s" %part_ID]
+            dropped_parts.append(part_ID)
+    return output_df, dropped_parts
+
 def main():
     group_config_file = '/home/nrajamani/grp/tests_v1/fsl-feat_config_adhd200_test7.yml'
     prep_inputs(group_config_file)
