@@ -349,8 +349,7 @@ def prep_inputs(group_config_file):
                 join_colums.append("Session")
                 # balance the DF
                 new_output_df, dropped_parts = balance_df(new_output_df, group_model.qpp_sessions_list, scan_list=None)
-                merge_outfile = group_model.qpp_out_path
-                merge_file = create_merge_file(new_output_df["Filepath"].tolist(), merge_outfile)
+
             if grp_by_sessions:
                 #multilple scans
                 #setting up the output_df for grouping by sessions
@@ -365,13 +364,11 @@ def prep_inputs(group_config_file):
                 sessions_list = None
                 scan_list = group_model.qpp_scan_list
                 new_output_df, dropped_parts = balance_df(new_output_df,sessions_list,scan_list)
-                merge_outfile = group_model.qpp_out_path
-                merge_file = create_merge_file(new_output_df["Filepath"].tolist(), merge_outfile)
+
 
             if grp_by_both:
                 new_output_df = new_output_df(new_output_df,group_model.qpp_sessions_list,group_model.qpp_scan_list)
-                merge_outfile = group_model.qpp_out_path
-                merge_file = create_merge_file(new_output_df["Filepath"].tolist(), merge_outfile)
+
         else:
             for scan_df_tuple in output_df.groupby("Scans"):
                 scans = scan_df_tuple[0]
@@ -386,16 +383,24 @@ def prep_inputs(group_config_file):
                 else:
                     session='ses-1'
                     new_output_df = pd.merge(new_output_df,scan_df,how="inner",on=["participant_id"])
-                    merge_outfile = group_model.qpp_out_path
-                    merge_file = create_merge_file(new_output_df["Filepath"].tolist(), merge_outfile)
+
         if len(new_output_df) == 0:
             err = '\n\n[!]C-PAC says:Could not find match betterrn the ' \
               'particoants in your pipeline output directory that were ' \
               'included in your analysis, and the particpants in the phenotype ' \
                     'phenotype file provided.\n\n'
             raise Exception(err)
+        #creating output directory paths
+        out_dir = os.path.join(group_model.output_dir,
+                               'cpac_group_analysis',
+                               'CPAC_QPP',
+                               '{0}'.format(pipeline_ID),
+                               nuisance_strat,
+                               session_id,
+                               series_or_repeated_label,
+                               preproc_strat)
         #merge all the files in the filepath, one for each nuisance startergy
-        merge_outfile = group_model.qpp_out_path
+        merge_outfile = out_dir
         merge_file = create_merge_file(new_output_df["Filepath"].tolist(),merge_outfile)
 
     return merge_file
