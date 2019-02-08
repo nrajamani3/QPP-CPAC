@@ -345,7 +345,7 @@ def prep_inputs(group_config_file):
                 #                         scan_2
                 new_output_df = op_grp_by_scans(output_df,group_model.qpp_sess_list)
                 # drop all the sessions that are not in the sessions list
-                new_output_df = new_output_df["Session"].isin(group_model.qpp_sessions_list)
+                new_output_df = new_output_df[new_output_df["Session"].isin(group_model.qpp_sessions_list)]
                 join_colums.append("Session")
                 # balance the DF
                 new_output_df, dropped_parts = balance_df(new_output_df, group_model.qpp_sessions_list, scan_list=None)
@@ -355,7 +355,7 @@ def prep_inputs(group_config_file):
                 new_output_df = op_grp_by_sessions(output_df,group_model.qpp_scan_list,grp_by_scans)
 
                 # drop all the scans that are not in the scan list
-                #new_output_df = new_output_df["Scan"].isin(group_model.qpp_scan_list)
+                new_output_df = new_output_df[new_output_df["Scan"].isin(group_model.qpp_scan_list)]
                 #print(new_output_df)
                 join_columns.append("Scan")
 
@@ -527,8 +527,10 @@ def balance_df(output_df,sessions_list,scan_list):
 
     if scan_list and sessions_list:
         sessions_x_scans= len(sessions_list)*len(scan_list)
+    elif sessions_list:
+        sessions_x_scans = len(sessions_list)
     else:
-        sessions_x_series = len(sessions_list)
+        sessions_x_scans = len(scan_list)
     dropped_parts = []
     for part_ID in part_ID_count.keys():
         if part_ID_count[part_ID] != sessions_x_scans:
