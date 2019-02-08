@@ -438,8 +438,8 @@ def op_sess_repeated_measures(output_df,sessions_list):
             sub_op_df["participant_session_id"] = output_df.participant_id + '_ses-%s' % session
             new_rows.append(sub_op_df)
             another_new_row.append(sub_op_df)
-            op_df = pd.concat(new_rows)
-            op_df = pd.concat(another_new_row)
+            output_df = pd.concat(new_rows)
+            output_df = pd.concat(another_new_row)
 
     sessions_col = []
     part_ids_col = []
@@ -448,11 +448,11 @@ def op_sess_repeated_measures(output_df,sessions_list):
     participant_id_cols = {}
     i = 0
 
-    for participant_unique_id in op_df["participant_session_id"]:
-        part_col = [0] * len(op_df["participant_session_id"])
+    for participant_unique_id in output_df["participant_session_id"]:
+        part_col = [0] * len(output_df["participant_session_id"])
 
         for session in sessions_list:
-
+            session=str(session)
             if session in participant_unique_id.split("_")[1]:
                 # print(participant_unique_id)# generate/update sessions categorical column
                 part_id = participant_unique_id.split("_")[0]
