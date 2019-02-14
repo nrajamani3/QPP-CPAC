@@ -12,6 +12,8 @@ import time
 
 
 def detect(img,mask,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360,Yeo_7):
+    print nrn
+    print nsubj
     if img.endswith('.mat'):
         D_file = scipy.io.loadmat(img)
         for keys in D_file:
@@ -19,11 +21,26 @@ def detect(img,mask,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360,Yeo_7):
         D = np.array(D)
 
     else:
+        ##This is the function to import the img into an array object
+        ##D_file is now an array object
+        ##nib is nibabel package
         D_file = nib.load(img)
-        D_img = np.array([[D_file.dataobj]])
-        D_shape = D_img.shape[:-1]
-        D_voxels=np.prod(D_img.shape[:-1])
-        D = D_img.reshape(D_voxels,D_img.shaape[-1])
+        D_img = D_file.dataobj
+        D_img=np.array(D_img)
+        print(D_img.shape)
+        ##shape of D_img is (61,73,61,7)
+        D_img = D_img.reshape(D_img.shape[0]*D_img.shape[1],D_img.shape[2],D_img.shape[3])
+        print(D_img.shape)
+        ##D_img is now (4453,61,7)
+        D = [[None]*nrn]*nsubj
+        #each element of D[i] should be of size (D_img.shape[0],D_img.shape[1]*D_img.shape[2])
+        ##initializing D, which is a list of lists
+        for i in range(nsubj):
+            for j in range(nrn):
+                D[i][j] = D_img[:,:,i+j*nsubj]
+
+        ##copy D_img to D
+
 ##---------------testing import + reshaping ------------------------###
     if  mask.endswith('.nii'):
         data1 = nib.load(mask)
@@ -43,18 +60,15 @@ def detect(img,mask,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360,Yeo_7):
         m_voxels = np.prod(msk_img.shape[:-1])
         msk = msk_img.reshape(m_voxels,msk_img.shape[-1])
 ##-----------------same import and reshaping here also------------###
-    nx = D[1,1].shape[0]
-    nt = D[1,1].shape[1]
-    nsubj = D.shape[0]
-    nrn = D.shape[1]
-
+    nx = D[0][0].shape[0]
+    nt = D[0][0].shape[1]
     nd = nsubj*nrn
     nt_new = nt * nd
     B = np.zeros((nx,nt_new))
     id =1
     for isbj in range(nsubj):
         for irn in range(nrn):
-                B[:,(id-1)*nt:id*nt] = (stats.zscore(D[isbj,irn],axis=1))
+                B[:,(id-1)*nt:id*nt] = (stats.zscore(D[isbj][irn],axis=1))
                 id += 1
     B=np.around(B, decimals=4)
     msk = np.zeros((nx,1))
