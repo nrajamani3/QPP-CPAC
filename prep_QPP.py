@@ -1,5 +1,5 @@
 import fnmatch
-import numpy as np
+import nump
 
 
 def load_config_yml(config_file, individual=False):
@@ -390,20 +390,15 @@ def prep_inputs(group_config_file):
               'included in your analysis, and the particpants in the phenotype ' \
                     'phenotype file provided.\n\n'
             raise Exception(err)
-        #creating output directory paths
-        out_dir = os.path.join(group_model.output_dir,
-                               'cpac_group_analysis',
-                               'CPAC_QPP',
-                               '{0}'.format(pipeline_ID),
-                               nuisance_strat,
-                               session_id,
-                               series_or_repeated_label,
-                               preproc_strat)
-        #merge all the files in the filepath, one for each nuisance startergy
+
         merge_outfile = out_dir
         merge_file = create_merge_file(new_output_df["Filepath"].tolist(),merge_outfile)
+        merge_mask_outfile = '_'.join([model_name, resource_id,
+                                       "merged_mask.nii.gz"])
+        merge_mask_outfile = os.path.join(model_path, merge_mask_outfile)
+        merge_mask = create_merge_mask(merge_file, merge_mask_outfile)
 
-    return merge_file
+    return merge_file,merge_mask
 
 
 def op_grp_by_sessions(output_df,scan_list,grp_by_scans=False):
@@ -591,10 +586,23 @@ def create_merge_mask(merged_file, mask_outfile):
 
     return mask_outfile
 
-def main():
+def run_qpp_group(group_config_file):
     group_config_file = '/home/nrajamani/grp/tests_v1/fsl-feat_config_adhd200_test7.yml'
-    merge_file = prep_inputs(group_config_file)
+    #creating output directory paths
 
+    merge_file,merge_mask = prep_inputs(group_config_file)
+    return merge_file,merge_mask
+
+def run_qpp(group_config_file):
+    img,mask = run_qpp_group(group_config_file)
+    out_dir = os.path.join(group_model.output_dir,
+                           'cpac_group_analysis',
+                           'CPAC_QPP',
+                           '{0}'.format(pipeline_ID),  # pipeline_ID to initialize
+                           nuisance_strat,  # nuisance strat to initialize
+                           session_id,  # initialize
+                           scan_or_session_label)  # series or repeated label == same as qpp scan or sessions list)
+    qpp_wf(img,mask,wl,nrp,cth,n_itr_th,mx_itr,out_dir,nsubj,nrn,glassr_360)
 
 main()
 
