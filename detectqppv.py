@@ -11,9 +11,8 @@ import time
 
 
 
-def detect(img,mask,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360,Yeo_7):
-    print nrn
-    print nsubj
+def qpp_wf(img,mask,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360):
+
     if img.endswith('.mat'):
         D_file = scipy.io.loadmat(img)
         for keys in D_file:
@@ -27,10 +26,10 @@ def detect(img,mask,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360,Yeo_7):
         D_file = nib.load(img)
         D_img = D_file.dataobj
         D_img=np.array(D_img)
-        print(D_img.shape)
+
         ##shape of D_img is (61,73,61,7)
         D_img = D_img.reshape(D_img.shape[0]*D_img.shape[1],D_img.shape[2],D_img.shape[3])
-        print(D_img.shape)
+
         ##D_img is now (4453,61,7)
         D = [[None]*nrn]*nsubj
         #each element of D[i] should be of size (D_img.shape[0],D_img.shape[1]*D_img.shape[2])
@@ -88,9 +87,8 @@ def detect(img,mask,wl,nrp,cth,n_itr_th,mx_itr,pfs,nsubj,nrn,glassr_360,Yeo_7):
     C_1,FTP1,Met1 = BSTT(time_course,ftp,nd,B)
     #regress QPP
     T =TBLD2WL(B,wl,FTP1)
-    Br, C1r=regressqpp(B, nd, T, C_1,args.glassr_360,Yeo_7)
+    Br, C1r=regressqpp(B, nd, T, C_1,args.glassr_360)
     print("-----%s seconds ----"%(time.time() - start_time))
-
 
 if __name__ == "__main__":
 
@@ -120,12 +118,9 @@ if __name__ == "__main__":
 
     parser.add_argument("glassr_360",type=bool,help='If you have data organized with glasser 360 parcels, set this option to true,else set it to False.')
 
-    parser.add_argument("Yeo_7",type=bool,help='If you have data orf=ganized with Yeo 7 networks,set this option to true. Else, set it to False.')
+
     args = parser.parse_args()
-
-
-
-    detect(args.img,args.mask,args.wl,args.nrp,args.cth,args.n_itr_th,args.mx_itr,args.pfs,args.nsubj,args.nrn,args.glassr_360,args.Yeo_7)
+    qpp_wf(args.img,args.mask,args.wl,args.nrp,args.cth,args.n_itr_th,args.mx_itr,args.pfs,args.nsubj,args.nrn,args.glassr_360)
 
 
 
