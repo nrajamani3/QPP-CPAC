@@ -295,14 +295,14 @@ def TBLD2WL(B,wl,FTP1):
             ze_flag=True
         if zs_flag:
             print("zs:{0}".format(zs.shape))
-            print("B_with_zs:{0}".format(B[:,ts:te+1].shape))
-            conct_array = np.concatenate([zs,B[:,ts:te+1]])
+            print("B_with_zs:{0}".format(B[:,ts:te].shape))
+            conct_array = np.concatenate((zs,B[:,ts-1:te]),axis=1)
         else:
-            conct_array = B[:,ts:te+1]
+            conct_array = B[:,ts-1:te]
         if ze_flag:
             print("conct_array:{0}".format(conct_array.shape))
             print("ze:{0}".format(ze.shape))
-            conct_array2 = np.concatenate([conct_array,ze],axis=1)
+            conct_array2 = np.concatenate((conct_array,ze),axis=1)
         else:
             conct_array2 = conct_array
         print(T.shape)
@@ -358,7 +358,7 @@ def regressqpp(B,nd,T1,C_1,glassr_360):
     C1r_plt = C1r.flatten()
     np.savetxt('regressor file',C1r)
     np.save('regressor file',C1r)
-    plt.plot(C_1_plt,'b')
+    plt.plot(C_1,'b')
     plt.plot(C1r_plt,'r')
     plt.axis([0,nd*nt,-1,1])
     plt.xticks(np.arange(nt,nT,step=nt))
