@@ -109,12 +109,12 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     #permute the numbers within ITP
     #itp = np.random.permutation(itp)
 
-    #itp = np.random.RandomState(seed=42).permutation(itp)
+    itp = np.random.permutation(itp)
     itp = itp[0:nrp]
 
     #Initialize the time course that will later on be saved
     time_course=np.zeros((nrp,nT))
-    ftp = []
+    ftp = [[None]]*nrp
     iter = np.zeros(nrp)
     for irp in range(nrp):
         #initialize a matrix c which will hold the templates
@@ -145,8 +145,10 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
         c_00 = c
         c_000 = c
         itr = 1
-        peaks_size = peaks.size
-
+        #peaks_size = peaks.size
+        #print(peaks)
+        #print(peaks.shape)
+        #print(peaks.size)
         while itr<=mx_itr:
             c = gaussian_filter(c,0.5)
 
@@ -156,9 +158,11 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
                 ith=1
             th=cth[ith]
             tpsgth=peaks
-            n_tpsgth=tpsgth.size
+            n_tpsgth=np.size(tpsgth)
+
             if n_tpsgth<=1:
                 break
+
             template = bchf[tpsgth[0]]
             for i in range(1,n_tpsgth):
                 template=template+bchf[tpsgth[i]]
@@ -187,14 +191,14 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
             c_0=c
             itr=itr+1
 
-        if peaks_size>1:
+        if n_tpsgth>1:
             time_course[irp,:]=c
-            ftp.append(peaks)
+            ftp[irp] = tpsgth.tolist()
             iter[irp]=itr
     #save everything!!
 
     plt.plot(template,'b')
-    plt.title('Template of QPP(nd=6,wl=30,subjects=3)')
+    plt.title('Template of QPP(nd=6,wl=30,subjects=7)')
     plt.xlabel('avg of func.data of length WL(30)')
     plt.show()
     mdict = {}
@@ -202,16 +206,11 @@ def qppv(B,msk,nd,wl,nrp,cth,n_itr_th,mx_itr,pfs):
     mdict["FTP"] = ftp
     mdict["ITER"] = iter
     mdict["ITP"] = itp
-    #time_course_reshaped= np.reshape(time_course,((4,4,73,61)))
-    #np.savez('out_array_reshape', time_course)
-    #nifti_c = nib.Nifti1Image(time_course,np.eye(4))
-    #nib.save(nifti_c, 'nifti_c.nii')
-    #print(time_course_reshaped[20:30])
 
-    #np.save('time_course_file',time_course)
-    #np.save('ftp_file',ftp)
-    #np.save('iter_file',iter)
-    #np.save('itp_file',itp)
+    np.save('time_course_file',time_course)
+    np.save('ftp_file',ftp)
+    np.save('iter_file',iter)
+    np.save('itp_file',itp)
 
     return time_course,ftp,itp,iter
 
@@ -228,13 +227,16 @@ def z(x,y):
 
 def BSTT(time_course,ftp,nd,B):
     #load the important files into this
+
     nT = B.shape[1]  # smaller value
     nX = B.shape[0]  # larger value
     nt = int(nT / nd)  # to prevent floating point errors during initializations
     nRp = time_course.shape[0]
     scmx = np.zeros(nRp)
+    if len(ftp) < nRp:
+        print("Error: There were no peaks found in your data.Please try to run with a different dataset")
     for i in range(nRp):
-        if np.any(ftp[i] != 0):
+        if np.any(ftp[i]):
             p = ftp[i]
             p = [int(x) for x in p]
             #check out the list index out of range error that pops up
@@ -252,14 +254,14 @@ def BSTT(time_course,ftp,nd,B):
     # plots
     # QPP correlation timecourse and metrics
 
-    #plt.plot(C_1,'b')
-    #plt.plot(FTP1,C_1[FTP1],'g^')
-    #plt.axis([0,nd*nt,-1,1])
-    #plt.xticks(np.arange(nt,nT,step=nt))
-    #plt.yticks(np.arange(-1,1,step=0.2))
-    #plt.xlabel('Time points of functional data,TR(s)')
-    #plt.title('QPP 2D array')
-    #plt.show()
+    plt.plot(C_1,'b')
+    plt.plot(FTP1,C_1[FTP1],'g^')
+    plt.axis([0,nd*nt,-1,1])
+    plt.xticks(np.arange(nt,nT,step=nt))
+    plt.yticks(np.arange(-1,1,step=0.2))
+    plt.xlabel('Time points of functional data,TR(s)')
+    plt.title('QPP 2D array')
+    plt.show()
 
     return C_1,FTP1,Met1
 
@@ -267,6 +269,7 @@ def TBLD2WL(B,wl,FTP1):
     nT = B.shape[1]  # smaller value
     nX = B.shape[0]
     nFTP = len(FTP1)
+
     WLhs0=round(wl/2)
 
     WLhe0= WLhs0-np.remainder(wl,2)
@@ -275,33 +278,41 @@ def TBLD2WL(B,wl,FTP1):
 
     for i in range(nFTP):
         ts=FTP1[i]-WLhs0
-        ts_int = int(ts)
-
+        ts = int(ts)
         te=FTP1[i]+wl-1+WLhe0
-        te_int = int(te)
-
+        te = int(te)
         zs=None
-        ze=None
+        zs_flag=False
         if ts <= 0:
-            zs=np.zeros((nX,abs(ts_int)+2))
+            zs=np.zeros((nX,abs(ts)+1))
             ts=1
+            zs_flag = True
+        ze=None
+        ze_flag=False
         if te>nT:
-            ze = np.zeros((nX,abs(te_int)-nT+1))
+            ze = np.zeros((nX,te-nT))
             te=nT
-        if zs:
-            conct_array = np.concatenate((zs,B[:,ts_int:te_int+1]))
+            ze_flag=True
+        if zs_flag:
+            print("zs:{0}".format(zs.shape))
+            print("B_with_zs:{0}".format(B[:,ts:te+1].shape))
+            conct_array = np.concatenate([zs,B[:,ts:te+1]])
         else:
-            conct_array = B[:, ts_int:te_int+1]
-        if ze:
-            conct_array2 = np.concatenate([conct_array,ze])
+            conct_array = B[:,ts:te+1]
+        if ze_flag:
+            print("conct_array:{0}".format(conct_array.shape))
+            print("ze:{0}".format(ze.shape))
+            conct_array2 = np.concatenate([conct_array,ze],axis=1)
         else:
             conct_array2 = conct_array
+        print(T.shape)
+        print(conct_array2.shape)
         T = T+conct_array2
     T=T/nFTP
 
     return T
 
-def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
+def regressqpp(B,nd,T1,C_1,glassr_360):
     #to do: check shape of c in loop
     wl = np.round(T1.shape[1]/2)
     wlhs = np.round(wl/2)
@@ -316,16 +327,14 @@ def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
     for i in range(nd):
         ts=(i)*nt
         c = C_1[ts:ts+nt]
-        #c=c.reshape(1,-1)
-        # c's shape is now (1,1200)-2D, have to make it a 1D array
-        #c=c.ravel()
+
 
         for ix in range(nd):
             x = np.convolve(c,T1c,mode='valid')
             y = B[ix,ts+wl-1:ts+nt]
             x_dot = np.dot(x,x)
             y_dot = np.dot(x,y)
-            #beta=np.linalg.solve(x_dot,y_dot)
+
             beta=y_dot/x_dot
             Br[ix,ts+wl-1:ts+nt]=y-x*beta
 
@@ -346,16 +355,16 @@ def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
             bch = T/np.sqrt(np.dot(T,T))
             C1r[:,ts+ich]=np.dot(T1n,bch)
 
-    #C1r_plt = C1r.flatten()
-    #np.savetxt('regressor file',C1r)
-    #np.save('regressor file',C1r)
-    #plt.plot(C_1_plt,'b')
-    #plt.plot(C1r_plt,'r')
-    #plt.axis([0,nd*nt,-1,1])
-    #plt.xticks(np.arange(nt,nT,step=nt))
-    #plt.yticks(np.arange(-1,1,step=0.2))
-    #plt.title('Time course overlapped with regressor')
-    #plt.show()
+    C1r_plt = C1r.flatten()
+    np.savetxt('regressor file',C1r)
+    np.save('regressor file',C1r)
+    plt.plot(C_1_plt,'b')
+    plt.plot(C1r_plt,'r')
+    plt.axis([0,nd*nt,-1,1])
+    plt.xticks(np.arange(nt,nT,step=nt))
+    plt.yticks(np.arange(-1,1,step=0.2))
+    plt.title('Time course overlapped with regressor')
+    plt.show()
     if glassr_360:
         indu=np.nonzero(np.triu(np.ones(nX),1))
 
@@ -372,7 +381,7 @@ def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
         plt.grid()
         plt.show()
 
-        bo_r, nind, p4lb,ylb = RDRG2Y7(Br)
+        bo_r, nind_r, p4lb,ylb = RDRG2Y7(Br)
         FC=np.corrcoef(bo_r)
         FCF[indl]=FC[indl]
 
@@ -383,15 +392,14 @@ def regressqpp(B,nd,T1,C_1,glassr_360,Yeo_7):
         plt.show()
 
         for i in range(2,7):
-            arr_1 = np.array([0,nX])
+            arr_1=np.array([0,nX])
             arr_2=np.array([nind[i],nind[i]])
-            arr_1=arr_1.flatten()
-            arr_2=arr_2.flatten()
             plt.plot(arr_1,arr_2,'k')
-            plt.plot(arr_2,'k')
-            plt.xticks(p4lb)
-            plt.yticks(p4lb)
-            plt.show()
+            plt.plot(arr_2,arr_1,'k')
+        plt.gca()
+        plt.xticks(p4lb)
+        plt.yticks(p4lb)
+        plt.show()
     return Br, C1r
 
 def RDRG2Y7(bi):
