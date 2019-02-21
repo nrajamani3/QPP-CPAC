@@ -618,8 +618,8 @@ def run_qpp(group_config_file):
     nsubj = len(inclusion_list)
     nrn =  group_config_obj.nrn #How many runs have you run each subject by. Please note that this is different from
     #the number of scans or sessions you want to include in the qpp analysis
-    glassr_360 = group_config_obj.glassr_360
-    qpp_wf(img,mask,wl,nrp,cth,n_itr_th,mx_itr,out_dir,nsubj,nrn,glassr_360)
+
+    qpp_wf(img,mask,wl,nrp,cth,n_itr_th,mx_itr,out_dir,nsubj,nrn)
 
 
 
