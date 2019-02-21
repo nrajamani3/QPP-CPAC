@@ -1,6 +1,7 @@
 import fnmatch
 import nump
-
+from QPPv0418 import detectqppv
+from detectqppv import qpp_wf
 
 def load_config_yml(config_file, individual=False):
 
@@ -86,12 +87,8 @@ def gather_nifti_globs(pipeline_output_folder,resource_list,derivatives=None):
             err = "\n[!] Could not access or read the cpac_outputs.csv " \
                   "resource file:\n{0}\n\nError details {1}\n".format(keys_csv, e)
             raise Exception(err)
-        derivatives = list(
-            keys[keys['Derivative'] == 'yes'][keys['Space'] == 'template'][
-                keys['Values'] == 'z-score']['Resource'])
-        derivatives = derivatives + list(
-            keys[keys['Derivative'] == 'yes'][keys['Space'] == 'template'][
-                keys['Values'] == 'z-stat']['Resource'])
+        derivatives = list(keys[keys['Space'] == 'functional'][keys['Functional timeseries'] == 'yes']['Resource'])
+
 
     pipeline_output_folder = pipeline_output_folder.rstrip("/")
     #print "\n\nGathering the output file paths from %s..." \
@@ -139,9 +136,6 @@ def gather_nifti_globs(pipeline_output_folder,resource_list,derivatives=None):
 
     return nifti_globs,search_dir
 
-def add(x,y):
-    a = x+y
-    return a
 
 def create_output_dict_list(nifti_globs,pipeline_folder,resource_list,search_dir,derivatives=None):
     import os
@@ -287,7 +281,7 @@ def prep_inputs(group_config_file):
 
     else:
         inclusion_list = grab_pipeline_dir_subs(pipeline_dir)
-    resource_list = ['alff']
+    resource_list = ['functional_nuisance_residuals']
     output_df_dict=gather_outputs(pipeline_folder,resource_list,inclusion_list)
 
     for unique_resource in output_df_dict.keys():
@@ -398,7 +392,7 @@ def prep_inputs(group_config_file):
         merge_mask_outfile = os.path.join(model_path, merge_mask_outfile)
         merge_mask = create_merge_mask(merge_file, merge_mask_outfile)
 
-    return merge_file,merge_mask
+    return merge_file,merge_mask,inclusion_list
 
 
 def op_grp_by_sessions(output_df,scan_list,grp_by_scans=False):
@@ -587,24 +581,46 @@ def create_merge_mask(merged_file, mask_outfile):
     return mask_outfile
 
 def run_qpp_group(group_config_file):
-    group_config_file = '/home/nrajamani/grp/tests_v1/fsl-feat_config_adhd200_test7.yml'
+
     #creating output directory paths
 
-    merge_file,merge_mask = prep_inputs(group_config_file)
-    return merge_file,merge_mask
+    merge_file,merge_mask,inclusion_list = prep_inputs(group_config_file)
+    return merge_file,merge_mask,inclusion_list
 
 def run_qpp(group_config_file):
-    img,mask = run_qpp_group(group_config_file)
+    group_config_file = '/home/nrajamani/grp/tests_v1/fsl-feat_config_adhd200_test7.yml'
+    img, mask, inclusion_list = run_qpp_group(group_config_file)
+
+    group_config_obj = load_yaml(group_config_file)
+
+
+
+    pipeline_ID = group_config_obj.pipeline_dir.rstrip('/').split('/')[-1]
+
     out_dir = os.path.join(group_model.output_dir,
                            'cpac_group_analysis',
                            'CPAC_QPP',
-                           '{0}'.format(pipeline_ID),  # pipeline_ID to initialize
+                           '{0}'.format(pipeline_ID),
                            nuisance_strat,  # nuisance strat to initialize
                            session_id,  # initialize
                            scan_or_session_label)  # series or repeated label == same as qpp scan or sessions list)
+
+    wl  = group_config_obj.wl
+
+    nrp = group_config_obj.nrp
+
+    cth = group_config_obj.cth
+
+    n_itr_th = group_config_obj.n_itr_th
+
+    mx_itr = group_config_obj.mx_itr
+
+    nsubj = len(inclusion_list)
+    nrn =  group_config_obj.nrn #How many runs have you run each subject by. Please note that this is different from
+    #the number of scans or sessions you want to include in the qpp analysis
+    glassr_360 = group_config_obj.glassr_360
     qpp_wf(img,mask,wl,nrp,cth,n_itr_th,mx_itr,out_dir,nsubj,nrn,glassr_360)
 
-main()
 
 
 
